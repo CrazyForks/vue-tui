@@ -1,6 +1,6 @@
 {
   "name": "terminal-flappy-bird",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "🐦 Flappy Bird in your terminal — high-pixel sprites, physics, difficulty progression, powered by terminal graphics protocols (Kitty / iTerm2 / WezTerm / Ghostty / Sixel).",
   "keywords": [
     "cli",

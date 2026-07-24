@@ -134,17 +134,15 @@ async function fetchBytes(url: string, opts: FetchOptions = {}): Promise<Uint8Ar
   return new Uint8Array(await res.arrayBuffer());
 }
 
-/** Decode an image buffer to raw RGBA via sharp; null on any failure / too small. */
+/** Decode an image buffer to raw RGBA; null on any failure / too small. */
 async function decodeImageSafe(
   bytes: Uint8Array,
 ): Promise<{ rgba: Uint8Array; width: number; height: number } | null> {
   try {
-    const sharp = (await import("sharp")).default;
-    const img = sharp(bytes);
-    const meta = await img.metadata();
-    if (!meta.width || meta.width < 32) return null;
-    const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    return { rgba: new Uint8Array(data), width: info.width, height: info.height };
+    const { decodeImage } = await import("./image.js");
+    const decoded = await decodeImage(bytes);
+    if (!decoded.width || decoded.width < 32) return null;
+    return decoded;
   } catch {
     return null;
   }

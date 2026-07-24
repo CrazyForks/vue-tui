@@ -1,6 +1,6 @@
 {
   "name": "@simon_he/repo-3d-badge",
-  "version": "0.1.2",
+  "version": "0.1.5",
   "description": "Turn any GitHub repository into a textured 3D terminal badge — contributors orbit a 3D extrusion of the repo logo, rendered with WebGPU in your terminal.",
   "keywords": [
     "3d",

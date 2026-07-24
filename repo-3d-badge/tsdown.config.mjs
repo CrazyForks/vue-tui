@@ -1,7 +1,7 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["src/cli.ts", "src/index.ts"],
+  entry: ["src/cli.ts", "src/cli-main.ts", "src/index.ts"],
   format: ["esm"],
   dts: true,
   clean: true,
@@ -12,7 +12,8 @@ export default defineConfig({
     "@simon_he/vue-tui/experimental",
     "@simon_he/vue-tui/experimental/3d/bun",
     "bun-webgpu",
-    "sharp",
+    "pngjs",
+    "jpeg-js",
     "vue",
     "node:zlib",
   ],

@@ -1,7 +1,7 @@
 /**
  * Image decode/resize, avatar atlas, and logo fallback for
- * @simon_he/repo-3d-badge. Uses `sharp` for decode/resize; the fallback logo
- * and atlas packing are pure CPU so they run under both Node and Bun.
+ * @simon_he/repo-3d-badge. Uses pure-JS decoders (pngjs + jpeg-js) so there
+ * are no native build dependencies — works out of the box with npx/bunx.
  */
 import type { AvatarAtlasTexture, RepoContributor, RepoLogo } from "./types.js";
 
@@ -10,36 +10,91 @@ const PLACEHOLDER_R = 30;
 const PLACEHOLDER_G = 41;
 const PLACEHOLDER_B = 59;
 
-/**
- * Decode image bytes to RGBA8 (top-left origin, row-major) via sharp.
- * Forces an alpha channel so the output is always 4 bytes per pixel.
- */
-export async function decodeImage(bytes: Uint8Array): Promise<{
+/** Detect image format from magic bytes. */
+function detectFormat(bytes: Uint8Array): "png" | "jpeg" | "unknown" {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "png";
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "jpeg";
+  }
+  return "unknown";
+}
+
+/** Decoded image: RGBA8, top-left origin, row-major. */
+interface DecodedImage {
   rgba: Uint8Array;
   width: number;
   height: number;
-}> {
-  const sharp = (await import("sharp")).default;
-  const img = sharp(Buffer.from(bytes));
-  const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  return { rgba: new Uint8Array(data), width: info.width, height: info.height };
+}
+
+/**
+ * Decode image bytes to RGBA8. Supports PNG (via pngjs) and JPEG (via jpeg-js).
+ * Both are pure-JS decoders with no native dependencies. Forces an alpha
+ * channel so the output is always 4 bytes per pixel.
+ */
+export async function decodeImage(bytes: Uint8Array): Promise<DecodedImage> {
+  const format = detectFormat(bytes);
+  if (format === "png") {
+    const { PNG } = await import("pngjs");
+    const png = PNG.sync.read(Buffer.from(bytes));
+    // pngjs always returns RGBA, but double-check
+    return { rgba: new Uint8Array(png.data), width: png.width, height: png.height };
+  }
+  if (format === "jpeg") {
+    const jpeg = await import("jpeg-js");
+    const raw = jpeg.decode(Buffer.from(bytes), { useTArray: true });
+    // jpeg-js returns RGB or RGBA depending on the image; normalize to RGBA
+    if (raw.data.length === raw.width * raw.height * 4) {
+      return { rgba: new Uint8Array(raw.data), width: raw.width, height: raw.height };
+    }
+    // Convert RGB -> RGBA
+    const rgba = new Uint8Array(raw.width * raw.height * 4);
+    for (let i = 0, j = 0; i < raw.data.length; i += 3, j += 4) {
+      rgba[j] = raw.data[i]!;
+      rgba[j + 1] = raw.data[i + 1]!;
+      rgba[j + 2] = raw.data[i + 2]!;
+      rgba[j + 3] = 255;
+    }
+    return { rgba, width: raw.width, height: raw.height };
+  }
+  throw new Error(`Unsupported image format (not PNG or JPEG)`);
 }
 
 /**
  * Decode image bytes and resize to a square `size`x`size` RGBA8 buffer using a
- * cover crop centered on the image.
+ * cover crop centered on the image. Uses nearest-neighbor sampling (fast, and
+ * the 32px avatar tiles are small enough that quality is fine).
  */
-export async function decodeResizeSquare(
-  bytes: Uint8Array,
-  size: number,
-): Promise<{ rgba: Uint8Array; width: number; height: number }> {
-  const sharp = (await import("sharp")).default;
-  const { data, info } = await sharp(Buffer.from(bytes))
-    .resize(size, size, { fit: "cover", position: "centre" })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  return { rgba: new Uint8Array(data), width: info.width, height: info.height };
+export async function decodeResizeSquare(bytes: Uint8Array, size: number): Promise<DecodedImage> {
+  const src = await decodeImage(bytes);
+  // Cover crop: scale so the shorter dimension fills `size`, center-crop the rest
+  const scale = Math.max(size / src.width, size / src.height);
+  const scaledW = Math.round(src.width * scale);
+  const scaledH = Math.round(src.height * scale);
+  const offsetX = Math.round((scaledW - size) / 2);
+  const offsetY = Math.round((scaledH - size) / 2);
+
+  const rgba = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    const srcY = Math.min(scaledH - 1, Math.max(0, Math.round(y / scale + offsetY / scale)));
+    for (let x = 0; x < size; x++) {
+      const srcX = Math.min(scaledW - 1, Math.max(0, Math.round(x / scale + offsetX / scale)));
+      const srcIdx = (srcY * src.width + srcX) * 4;
+      const dstIdx = (y * size + x) * 4;
+      rgba[dstIdx] = src.rgba[srcIdx]!;
+      rgba[dstIdx + 1] = src.rgba[srcIdx + 1]!;
+      rgba[dstIdx + 2] = src.rgba[srcIdx + 2]!;
+      rgba[dstIdx + 3] = src.rgba[srcIdx + 3]!;
+    }
+  }
+  return { rgba, width: size, height: size };
 }
 
 /** Build a single solid dark-slate `tileSize`x`tileSize` RGBA8 tile. */
