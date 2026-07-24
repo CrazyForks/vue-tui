@@ -19,6 +19,22 @@ import { fetchRepo3DData, readTokenFromEnv } from "./github.js";
 import { createRepoBadgeRenderer } from "./renderer.js";
 import { createRepoBadgeComponent } from "./app.js";
 
+// Bun runtime check — the 3D WebGPU renderer requires Bun + bun-webgpu.
+// Detect early and give a helpful message instead of a cryptic crash.
+const isBun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
+if (!isBun) {
+  process.stderr.write(
+    [
+      "repo-3d-badge requires the Bun runtime for 3D WebGPU rendering.",
+      "",
+      "Install Bun:  curl -fsSL https://bun.sh/install | bash",
+      "Then run:     bunx repo-3d-badge <github-repo>",
+      "",
+    ].join("\n") + "\n",
+  );
+  process.exit(1);
+}
+
 const DEFAULT_COLS = 82;
 const DEFAULT_ROWS = 26;
 

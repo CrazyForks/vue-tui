@@ -1,6 +1,6 @@
 {
   "name": "@simon_he/repo-3d-badge",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Turn any GitHub repository into a textured 3D terminal badge — contributors orbit a 3D extrusion of the repo logo, rendered with WebGPU in your terminal.",
   "keywords": [
     "3d",
@@ -17,7 +17,7 @@
   "license": "MIT",
   "author": "Simon He",
   "bin": {
-    "repo-3d-badge": "./dist/cli.js"
+    "repo-3d-badge": "dist/cli.js"
   },
   "files": [
     "dist"
@@ -41,23 +41,15 @@
   },
   "dependencies": {
     "@simon_he/vue-tui": "workspace:*",
+    "bun-webgpu": "^0.1.7",
     "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/node": "^18.19.0",
-    "bun-webgpu": "^0.1.7",
     "tsdown": "^0.9.9",
     "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vue": "^3.5.38"
-  },
-  "peerDependencies": {
-    "bun-webgpu": "^0.1.7"
-  },
-  "peerDependenciesMeta": {
-    "bun-webgpu": {
-      "optional": true
-    }
   },
   "engines": {
     "node": ">=18"
