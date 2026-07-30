@@ -15,18 +15,17 @@ import { TMarkdownText, type TuiMarkdownMathActionPayload } from "../src/markdow
 import { TText, useLayout, useTerminal } from "../src/vue.js";
 
 const CONTENT = [
-  "KaTeX terminal text rendering",
+  "Optional KaTeX terminal text rendering",
   "",
-  "Supported inline:",
+  "Rendered after the optional KaTeX peer loads:",
   "Euler: $e^{i\\pi}+1=0$",
   "Fraction: $\\frac{a}{b}+\\sqrt{x}$",
   "Operators: $\\int_0^1 x^2 dx + \\sum_{n=1}^{10} n$",
   "",
-  "Kept as raw text:",
+  "Unsupported formulas stay raw:",
   "Matrix: $\\begin{bmatrix}1&2\\\\3&4\\end{bmatrix}$",
   "Cases: $\\begin{cases}x&x>0\\\\-x&x<0\\end{cases}$",
   "Unsupported command: $\\operatorname{softmax}(x)$",
-  "Invalid: $\\notACommand{x}$",
   "",
   "Click any formula to copy its original KaTeX text.",
   "Press q / Escape / Ctrl+C to exit.",

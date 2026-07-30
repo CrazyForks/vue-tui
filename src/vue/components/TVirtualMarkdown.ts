@@ -28,6 +28,7 @@ import { buildMarkdownBlocks } from "../markdown/document.js";
 import { findMarkdownImageActionAt } from "../markdown/image-actions.js";
 import { findMarkdownLinkActionAt } from "../markdown/link-actions.js";
 import { findMarkdownMathActionAt } from "../markdown/math-actions.js";
+import { subscribeMarkdownMathRenderer } from "../markdown/math.js";
 import {
   terminalSelectionRowSpans,
   terminalSelectionVisibleRowSpans,
@@ -210,6 +211,9 @@ export const TVirtualMarkdown = defineComponent({
     const graphicsOutputVersion = shallowRef(getTerminalGraphicsOutputVersion(terminal));
     const unsubscribeGraphicsOutput = subscribeTerminalGraphicsOutput(terminal, () => {
       graphicsOutputVersion.value = getTerminalGraphicsOutputVersion(terminal);
+    });
+    const unsubscribeMathRenderer = subscribeMarkdownMathRenderer(() => {
+      scheduleRebuild();
     });
 
     watch(
@@ -694,6 +698,7 @@ export const TVirtualMarkdown = defineComponent({
       alive = false;
       rebuildVersion++;
       unsubscribeGraphicsOutput();
+      unsubscribeMathRenderer();
       clearMarkdownImageGraphics(terminal, fullRect.value);
     });
 

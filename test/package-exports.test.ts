@@ -73,6 +73,7 @@ const packageJson = JSON.parse(readFileSync(resolve("package.json"), "utf8")) as
   module?: string;
   types?: string;
   exports?: Record<string, unknown>;
+  dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   peerDependenciesMeta?: Record<string, { optional?: boolean }>;
 };
@@ -144,10 +145,13 @@ describe("package exports", () => {
     expect(pkg.default.name).toBe("@simon_he/vue-tui");
   });
 
-  it("keeps Vue broad and the Bun WebGPU peer optional", () => {
+  it("keeps Vue broad and renderer peers optional", () => {
     expect(packageJson.peerDependencies?.vue).toBe(">=3.3.0 <4");
     expect(packageJson.peerDependencies?.["bun-webgpu"]).toBe("^0.1.7");
     expect(packageJson.peerDependenciesMeta?.["bun-webgpu"]?.optional).toBe(true);
+    expect(packageJson.dependencies?.katex).toBeUndefined();
+    expect(packageJson.peerDependencies?.katex).toBe("^0.16.47");
+    expect(packageJson.peerDependenciesMeta?.katex?.optional).toBe(true);
   });
 
   it("does not import the mixed renderer barrel from CLI app runtime", () => {
@@ -179,6 +183,18 @@ describe("package exports", () => {
 
     expect(agentMermaidCjs).toContain('require("../mermaid.cjs")');
     expect(agentMermaidCjs).not.toMatch(/require\(["']beautiful-mermaid["']\)/);
+  });
+
+  it.skipIf(!requireDistExports)("keeps the optional KaTeX peer lazy in built output", () => {
+    const browserEsm = readdirSync(resolve("dist"))
+      .filter((file) => file.endsWith(".js"))
+      .map((file) => readFileSync(resolve("dist", file), "utf8"))
+      .join("\n");
+    const markdownCjs = readFileSync(distMarkdownCjs, "utf8");
+
+    expect(browserEsm).toContain('import("katex")');
+    expect(markdownCjs).toContain('import("katex")');
+    expect(markdownCjs).not.toMatch(/require\(["']katex["']\)/);
   });
 
   it.skipIf(!requireDistExports)("keeps the Node FFmpeg adapter lazy in built CJS output", () => {
@@ -799,7 +815,7 @@ describe("package exports", () => {
       write: false,
       platform: "browser",
       format: "esm",
-      external: ["vue", "beautiful-mermaid"],
+      external: ["vue", "beautiful-mermaid", "katex"],
       plugins: [forbidNodeBuiltins],
     });
     const output = result.outputFiles
@@ -842,7 +858,7 @@ describe("package exports", () => {
         write: false,
         platform: "browser",
         format: "esm",
-        external: ["vue", "beautiful-mermaid"],
+        external: ["vue", "beautiful-mermaid", "katex"],
         plugins: [forbidNodeBuiltins],
       });
       const output = result.outputFiles

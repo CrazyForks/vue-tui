@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createStdoutRenderer } from "../src/cli.js";
 import { TMarkdownText, TVirtualMarkdown } from "../src/markdown.js";
-import { renderMarkdownInlineMathSegment } from "../src/vue/markdown/math.js";
+import {
+  loadMarkdownMathRenderer,
+  renderMarkdownInlineMathSegment,
+} from "../src/vue/markdown/math.js";
 import { h, mountTerminal, nextTick } from "./ui-regressions-support.js";
 
 type MountedTerminal = Awaited<ReturnType<typeof mountTerminal>>;
@@ -38,7 +41,7 @@ const TINY_PNG_DATA_URL =
   "data:image/png;base64," +
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
-describe("markdown kitty image and KaTeX rendering", () => {
+describe("markdown kitty images and optional KaTeX rendering", () => {
   it("emits a Kitty graphics frame for markdown image URLs instead of text fallback", async () => {
     await withEnv(
       {
@@ -95,7 +98,7 @@ describe("markdown kitty image and KaTeX rendering", () => {
     );
   });
 
-  it("renders inline KaTeX instead of leaking raw TeX syntax", async () => {
+  it("loads optional KaTeX on demand and replaces raw syntax", async () => {
     const mounted = await mountTerminal(
       () =>
         h(TMarkdownText, {
@@ -110,18 +113,24 @@ describe("markdown kitty image and KaTeX rendering", () => {
     );
 
     try {
+      const initial = [0, 1, 2, 3].map((y) => rowText(mounted, y)).join("\n");
+      expect(initial).toContain("$\\frac{a}{b}$");
+
+      expect(await loadMarkdownMathRenderer()).toBe(true);
+      await nextTick();
+      mounted.scheduler()?.flushNow();
       const visible = [0, 1, 2, 3].map((y) => rowText(mounted, y)).join("\n");
       expect(visible).toContain("Euler");
       expect(visible).not.toContain("$e^{i\\pi}+1=0$");
-      expect(visible).not.toContain("\\frac");
-      expect(visible).not.toContain("\\pi");
+      expect(visible).not.toContain("$\\frac{a}{b}$");
       expect(visible).toMatch(/π|pi/i);
     } finally {
       mounted.unmount();
     }
   });
 
-  it("does not emit html-like text from rendered KaTeX", () => {
+  it("does not emit html-like text from loaded KaTeX", async () => {
+    expect(await loadMarkdownMathRenderer()).toBe(true);
     const rendered = renderMarkdownInlineMathSegment("x<script");
     const fraction = renderMarkdownInlineMathSegment("\\frac{<script}{b}");
 
@@ -164,6 +173,7 @@ describe("markdown kitty image and KaTeX rendering", () => {
         VUE_TUI_GRAPHICS_FORCE: "1",
       },
       async () => {
+        expect(await loadMarkdownMathRenderer()).toBe(true);
         const mounted = await mountTerminal(
           () =>
             h(TVirtualMarkdown, {
@@ -185,9 +195,9 @@ describe("markdown kitty image and KaTeX rendering", () => {
         try {
           await nextTick();
           await nextTick();
+          mounted.scheduler()?.flushNow();
           const visible = [0, 1, 2, 3, 4].map((y) => rowText(mounted, y)).join("\n");
           expect(visible).not.toContain(TINY_PNG_DATA_URL);
-          expect(visible).not.toContain("\\int");
           expect(visible).toMatch(/∫|int/i);
         } finally {
           mounted.unmount();

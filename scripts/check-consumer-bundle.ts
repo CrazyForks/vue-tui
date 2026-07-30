@@ -54,7 +54,7 @@ try {
       format: "esm",
       minify: true,
       treeShaking: true,
-      external: ["vue", "beautiful-mermaid"],
+      external: ["vue", "beautiful-mermaid", "katex"],
       metafile: true,
     });
     const text = result.outputFiles[0]!.text;

@@ -89,14 +89,13 @@ const cjsBrowserResult = await build({
   treeShaking: true,
   minifySyntax: true,
   metafile: true,
-  // Keep dynamic import syntax in browser-facing CJS. The Mermaid bridge uses
-  // import("beautiful-mermaid") so CJS consumers can load the optional ESM peer
-  // lazily at render time instead of requiring it during entrypoint import.
+  // Keep dynamic import syntax in browser-facing CJS so optional renderer peers
+  // can load lazily at render time instead of being required during entrypoint import.
   supported: { "dynamic-import": true },
   // CJS intentionally bundles stream-markdown-parser because it only exposes
-  // ESM entrypoints. Keep beautiful-mermaid external so the CJS bridge can
-  // load the optional ESM peer through dynamic import at render time.
-  external: ["vue", "beautiful-mermaid"],
+  // ESM entrypoints. Keep optional peers external so they can be loaded
+  // through dynamic import at render time.
+  external: ["vue", "beautiful-mermaid", "katex"],
   plugins: [forbidNodeBuiltinsPlugin, instrumentationStripPlugin],
   define: productionDefine,
 });
@@ -134,7 +133,7 @@ const cjsCliResult = await build({
   minifySyntax: true,
   metafile: true,
   supported: { "dynamic-import": true },
-  external: ["vue", "bun-webgpu"],
+  external: ["vue", "bun-webgpu", "katex"],
   define: productionDefine,
   plugins: [instrumentationStripPlugin],
 });

@@ -6846,7 +6846,7 @@
           "type": "boolean",
           "required": false,
           "defaultValue": "false",
-          "description": "Enables pointer actions for rendered markdown math blocks.",
+          "description": "Enables pointer actions for rendered or raw markdown math syntax.",
           "descriptionSource": "component-default"
         },
         {
@@ -10844,7 +10844,7 @@
           "type": "boolean",
           "required": false,
           "defaultValue": "false",
-          "description": "Enables pointer actions for rendered markdown math blocks.",
+          "description": "Enables pointer actions for rendered or raw markdown math syntax.",
           "descriptionSource": "component-default"
         },
         {

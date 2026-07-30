@@ -87,7 +87,7 @@ export const sharedPublicPropDescriptions: Record<string, string> = {
   imagePreserveAspectRatio:
     "Preserves markdown image aspect ratio while fitting width and height bounds.",
   imageActions: "Enables pointer actions for rendered markdown images.",
-  mathActions: "Enables pointer actions for rendered markdown math blocks.",
+  mathActions: "Enables pointer actions for rendered or raw markdown math syntax.",
   linkActions: "Enables pointer actions for rendered markdown links.",
   imageOcclusionRects:
     "Terminal rectangles that markdown image layout treats as unavailable for graphics placement.",

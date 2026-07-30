@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      katex:
-        specifier: ^0.16.47
-        version: 0.16.47
       stream-markdown-parser:
         specifier: 1.1.8
         version: 1.1.8
@@ -42,6 +39,9 @@ importers:
       happy-dom:
         specifier: ^17.6.3
         version: 17.6.3
+      katex:
+        specifier: ^0.16.47
+        version: 0.16.47
       lint-staged:
         specifier: ^13.3.0
         version: 13.3.0

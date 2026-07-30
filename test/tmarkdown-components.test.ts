@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TMarkdownText, TVirtualMarkdown } from "../src/markdown.js";
+import { loadMarkdownMathRenderer } from "../src/vue/markdown/math.js";
 import { h, mountTerminal, nextTick, ref } from "./ui-regressions-support.js";
 
 const TINY_PNG_BASE64 =
@@ -931,6 +932,7 @@ describe("markdown components", () => {
   });
 
   it("emits mathAction with original KaTeX text when formula is clicked", async () => {
+    await loadMarkdownMathRenderer();
     const actions: unknown[] = [];
     const mounted = await mountTerminal(
       () =>

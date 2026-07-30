@@ -957,6 +957,8 @@ Markdown renderer for static or streaming text content。它走独立的 `parser
 
 > Markdown import: `@simon_he/vue-tui/markdown`
 >
+> Inline math initially keeps the original KaTeX/LaTeX syntax, including `$...$` delimiters. When the optional `katex` peer is installed, the Markdown renderer loads it on demand and automatically replaces supported formulas with terminal text; when it is absent, the raw syntax remains visible.
+>
 > `content` string 路径仍然只做 **per-frame coalescing**：一帧内多次 append 会合并成一次 rebuild，但 rebuild 本身仍然会从当前 full markdown string parse。长文档 streaming transcript 场景可以使用 `createMarkdownBlockSource()`，在消息、tool fence 或代码块完成时 `finalizeBlock()`，再把 `blocks` 传给 `TVirtualMarkdown`，避免反复重 parse 已 finalize 的历史。
 
 ## TMermaid

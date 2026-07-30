@@ -19,7 +19,7 @@ const nodeBuiltins = Array.from(
   ]),
 );
 
-const browserExternals = ["vue", "stream-markdown-parser", "beautiful-mermaid"];
+const browserExternals = ["vue", "stream-markdown-parser", "beautiful-mermaid", "katex"];
 
 // Production builds: strip performance instrumentation via dead-code elimination
 const productionDefine = {
@@ -104,7 +104,7 @@ export default defineConfig([
     clean: false,
     dts: false,
     platform: "node",
-    external: ["vue", "bun-webgpu", ...nodeBuiltins],
+    external: ["vue", "bun-webgpu", "katex", ...nodeBuiltins],
     define: productionDefine,
     treeshake: true,
     plugins: [instrumentationStripPlugin("esm-cli")],

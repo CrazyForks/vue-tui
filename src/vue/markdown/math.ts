@@ -1,10 +1,51 @@
-import katex from "katex";
 import { sanitizeInlineText } from "../utils/text.js";
 
 export type TuiMarkdownInlineMathRender = Readonly<{
   text: string;
   supported: boolean;
 }>;
+
+type KatexRenderer = Readonly<{
+  renderToString: (source: string, options: Record<string, unknown>) => string;
+}>;
+
+type KatexModule = Readonly<{
+  default?: unknown;
+  renderToString?: unknown;
+}>;
+
+let loadedKatex: KatexRenderer | null = null;
+let katexLoad: Promise<boolean> | null = null;
+const katexListeners = new Set<() => void>();
+
+function resolveKatexRenderer(value: unknown): KatexRenderer | null {
+  if (!value || typeof value !== "object") return null;
+  const renderToString = (value as { renderToString?: unknown }).renderToString;
+  return typeof renderToString === "function"
+    ? { renderToString: renderToString as KatexRenderer["renderToString"] }
+    : null;
+}
+
+export function subscribeMarkdownMathRenderer(listener: () => void): () => void {
+  katexListeners.add(listener);
+  return () => katexListeners.delete(listener);
+}
+
+export async function loadMarkdownMathRenderer(): Promise<boolean> {
+  if (loadedKatex) return true;
+  if (!katexLoad) {
+    katexLoad = import("katex")
+      .then((mod: KatexModule) => {
+        const renderer = resolveKatexRenderer(mod.default) ?? resolveKatexRenderer(mod);
+        if (!renderer) return false;
+        loadedKatex = renderer;
+        for (const listener of katexListeners) listener();
+        return true;
+      })
+      .catch(() => false);
+  }
+  return katexLoad;
+}
 
 const KATEX_TEXT_OPTIONS = Object.freeze({
   output: "mathml" as const,
@@ -156,7 +197,7 @@ function approximateTexToUnicode(tex: string): string {
   return sanitizeInlineText(out.replace(/[<>]/g, ""));
 }
 
-function canRenderTerminalMath(tex: string): boolean {
+function canRenderTerminalMath(tex: string, katex: KatexRenderer): boolean {
   const source = String(tex ?? "").trim();
   if (!source || source.length > 160) return false;
   if (
@@ -185,7 +226,13 @@ export function renderMarkdownInlineMathSegment(tex: string): TuiMarkdownInlineM
   const source = String(tex ?? "");
   if (!source.trim()) return { text: "", supported: false };
 
-  if (!canRenderTerminalMath(source)) {
+  const katex = loadedKatex;
+  if (!katex) {
+    void loadMarkdownMathRenderer();
+    return { text: "", supported: false };
+  }
+
+  if (!canRenderTerminalMath(source, katex)) {
     return { text: "", supported: false };
   }
 
@@ -207,5 +254,5 @@ export function renderMarkdownInlineMathSegment(tex: string): TuiMarkdownInlineM
 
 export function renderMarkdownInlineMath(tex: string): string {
   const rendered = renderMarkdownInlineMathSegment(tex);
-  return rendered.supported ? rendered.text : approximateTexToUnicode(tex);
+  return rendered.supported ? rendered.text : String(tex ?? "");
 }

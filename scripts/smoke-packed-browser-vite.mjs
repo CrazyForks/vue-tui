@@ -50,6 +50,11 @@ import * as mermaid from "${packageName}/mermaid";
 
 const terminal = root.createTerminal({ cols: 4, rows: 1 });
 terminal.write("OK", { x: 0, y: 0 });
+const mathSource = "formula: $\\\\frac{a}{b}$";
+const rawMath = markdown
+  .buildMarkdownVisualRows(mathSource, 40, markdown.createTuiMarkdownParser())
+  .map((row) => row.plainText)
+  .join("");
 
 globalThis.__VUE_TUI_BROWSER_SMOKE__ = Boolean(
   root.TerminalProvider &&
@@ -65,6 +70,7 @@ globalThis.__VUE_TUI_BROWSER_SMOKE__ = Boolean(
     agentMermaid.TMermaidText &&
     mermaid.TMermaidText &&
     mermaid.beautifulMermaidRenderer &&
+    rawMath.includes(mathSource) &&
     terminal.snapshot().lines[0]?.startsWith("OK"),
 );
 

@@ -20,6 +20,7 @@ import { buildMarkdownVisualRows } from "../markdown/document.js";
 import { findMarkdownImageActionAt } from "../markdown/image-actions.js";
 import { findMarkdownLinkActionAt } from "../markdown/link-actions.js";
 import { findMarkdownMathActionAt } from "../markdown/math-actions.js";
+import { subscribeMarkdownMathRenderer } from "../markdown/math.js";
 import { createTuiMarkdownParser } from "../markdown/parser.js";
 import {
   clearMarkdownImageGraphics,
@@ -110,6 +111,9 @@ export const TMarkdownText = defineComponent({
     const unsubscribeGraphicsOutput = subscribeTerminalGraphicsOutput(terminal, () => {
       graphicsOutputVersion.value = getTerminalGraphicsOutputVersion(terminal);
     });
+    const unsubscribeMathRenderer = subscribeMarkdownMathRenderer(() => {
+      scheduleRebuild();
+    });
 
     watch(
       () => `${props.streaming ? 1 : 0}:${(props.customHtmlTags ?? []).join("\u0000")}`,
@@ -190,6 +194,7 @@ export const TMarkdownText = defineComponent({
       alive = false;
       rebuildVersion++;
       unsubscribeGraphicsOutput();
+      unsubscribeMathRenderer();
       clearMarkdownImageGraphics(terminal, fullRect.value);
     });
 

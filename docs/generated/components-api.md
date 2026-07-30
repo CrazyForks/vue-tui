@@ -1724,7 +1724,7 @@ Import: `@simon_he/vue-tui/markdown`
 | <code>imageMaxHeight</code>           | <code>number</code>                    | <code>undefined</code> | 否   | Maximum markdown image render height in terminal cells.                                      |
 | <code>imagePreserveAspectRatio</code> | <code>boolean</code>                   | <code>true</code>      | 否   | Preserves markdown image aspect ratio while fitting width and height bounds.                 |
 | <code>imageActions</code>             | <code>boolean</code>                   | <code>false</code>     | 否   | Enables pointer actions for rendered markdown images.                                        |
-| <code>mathActions</code>              | <code>boolean</code>                   | <code>false</code>     | 否   | Enables pointer actions for rendered markdown math blocks.                                   |
+| <code>mathActions</code>              | <code>boolean</code>                   | <code>false</code>     | 否   | Enables pointer actions for rendered or raw markdown math syntax.                            |
 | <code>linkActions</code>              | <code>boolean</code>                   | <code>false</code>     | 否   | Enables pointer actions for rendered markdown links.                                         |
 | <code>imageOcclusionRects</code>      | <code>readonly Rect[]</code>           | <code>undefined</code> | 否   | Terminal rectangles that markdown image layout treats as unavailable for graphics placement. |
 
@@ -2955,7 +2955,7 @@ Import: `@simon_he/vue-tui/markdown`
 | <code>imageMaxHeight</code>           | <code>number</code>                      | <code>undefined</code>    | 否   | Maximum markdown image render height in terminal cells.                                      |
 | <code>imagePreserveAspectRatio</code> | <code>boolean</code>                     | <code>true</code>         | 否   | Preserves markdown image aspect ratio while fitting width and height bounds.                 |
 | <code>imageActions</code>             | <code>boolean</code>                     | <code>false</code>        | 否   | Enables pointer actions for rendered markdown images.                                        |
-| <code>mathActions</code>              | <code>boolean</code>                     | <code>false</code>        | 否   | Enables pointer actions for rendered markdown math blocks.                                   |
+| <code>mathActions</code>              | <code>boolean</code>                     | <code>false</code>        | 否   | Enables pointer actions for rendered or raw markdown math syntax.                            |
 | <code>linkActions</code>              | <code>boolean</code>                     | <code>false</code>        | 否   | Enables pointer actions for rendered markdown links.                                         |
 | <code>imageOcclusionRects</code>      | <code>readonly Rect[]</code>             | <code>undefined</code>    | 否   | Terminal rectangles that markdown image layout treats as unavailable for graphics placement. |
 
