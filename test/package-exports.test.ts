@@ -397,6 +397,7 @@ describe("package exports", () => {
       "createTuiMarkdownParser",
       "isSafeMarkdownLink",
       "layoutMarkdownBlocks",
+      "loadMarkdownMathRenderer",
     ]);
     expect(Object.keys(experimental).sort()).toEqual([
       "T3DViewport",
@@ -638,6 +639,7 @@ describe("package exports", () => {
     expect(markdown.buildMarkdownBlocks).toBeTruthy();
     expect(markdown.buildMarkdownVisualRows).toBeTruthy();
     expect(markdown.layoutMarkdownBlocks).toBeTruthy();
+    expect(markdown.loadMarkdownMathRenderer).toBeTruthy();
     expect(experimental.TLogView).toBeTruthy();
     expect(experimental.TLogScrollbar).toBeTruthy();
     expect(experimental.TLogMinimap).toBeTruthy();
@@ -1091,6 +1093,7 @@ describe("package exports", () => {
     expect(markdownCjs.buildMarkdownBlocks).toBeTruthy();
     expect(markdownCjs.buildMarkdownVisualRows).toBeTruthy();
     expect(markdownCjs.layoutMarkdownBlocks).toBeTruthy();
+    expect(markdownCjs.loadMarkdownMathRenderer).toBeTruthy();
     expect(experimental.TVirtualList).toBeTruthy();
     expect(experimental.TVideo).toBeTruthy();
     expect(experimentalVideoNode.createFfmpegVideoFrameSource).toBeTruthy();

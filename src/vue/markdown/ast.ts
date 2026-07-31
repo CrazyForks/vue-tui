@@ -55,6 +55,16 @@ function stringProp(node: TuiMarkdownNode, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
+/**
+ * Temporary fallback: stream-markdown-parser only recovers `![alt](file:///X:/...)`
+ * destinations (Windows drive letters, fixed in 1.1.8). Unix-style `file:///...`
+ * destinations at inline start are still emitted as `text("!") + link`. Remove this
+ * once the parser covers all `file://` destinations.
+ */
+function isUnixFileUrlNeedingImageFallback(href: string): boolean {
+  return /^file:\/\//i.test(href) && !/^file:\/\/\/[a-z]:\//i.test(href);
+}
+
 function imageSourceFromRaw(raw: string): string {
   if (!raw.startsWith("![")) return "";
   const marker = raw.indexOf("](");
@@ -216,7 +226,30 @@ function inlineNodeSegments(
   }> = {},
 ): TuiMarkdownInlineSegment[] {
   const out: TuiMarkdownInlineSegment[] = [];
-  for (const node of nodes) {
+  for (let index = 0; index < nodes.length; index++) {
+    let node = nodes[index]!;
+    const next = nodes[index + 1];
+    const text = node.type === "text" ? stringProp(node, "content") : "";
+    if (
+      node.type === "text" &&
+      text.endsWith("!") &&
+      stringProp(node, "raw").endsWith("!") &&
+      next?.type === "link" &&
+      isUnixFileUrlNeedingImageFallback(stringProp(next, "href"))
+    ) {
+      const src = stringProp(next, "href");
+      if (sanitizeMarkdownImageSource(src)) {
+        pushTextSegments(out, text.slice(0, -1), inheritedStyle);
+        node = {
+          type: "image",
+          src,
+          alt: stringProp(next, "text"),
+          raw: `!${stringProp(next, "raw")}`,
+        };
+        index++;
+      }
+    }
+
     switch (node.type) {
       case "text":
         pushTextSegments(out, stringProp(node, "content"), inheritedStyle);

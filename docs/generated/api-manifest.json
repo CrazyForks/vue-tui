@@ -676,7 +676,8 @@
         "createMarkdownBlockSource",
         "createTuiMarkdownParser",
         "isSafeMarkdownLink",
-        "layoutMarkdownBlocks"
+        "layoutMarkdownBlocks",
+        "loadMarkdownMathRenderer"
       ],
       "typeExports": [
         "TuiMarkdownBlock",

@@ -186,6 +186,7 @@ describe("public API surface", () => {
         "createTuiMarkdownParser",
         "isSafeMarkdownLink",
         "layoutMarkdownBlocks",
+        "loadMarkdownMathRenderer",
       ]
     `);
   });
