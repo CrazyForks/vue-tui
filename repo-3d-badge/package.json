@@ -42,7 +42,8 @@
   "dependencies": {
     "@simon_he/vue-tui": "workspace:*",
     "bun-webgpu": "^0.1.7",
-    "sharp": "^0.33.5"
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^5.0.0"
   },
   "devDependencies": {
     "@types/node": "^18.19.0",
