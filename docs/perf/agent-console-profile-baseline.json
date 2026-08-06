@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "measurementRef": "71eaf861449cdd1d768ea3dde00683417c5c32c5",
+  "measurementRef": "61336a43aa96150bcf73831b43c8543a3fbc1817",
   "measurementInputs": {
     "examples/agent-console/src/AgentConsoleSurface.ts": "af637520b7323160fe433ddbfb4a41d965c62d92654c8014d279ff55291aa129",
     "examples/agent-console/src/App.vue": "0ac4ae6fb1279e8ed98e6a82f6eb0e98feacb85b67a0544ae8005cf70f583d8f",
@@ -17,10 +17,10 @@
     "examples/agent-console/index.html": "8bfed1c6b6b5edb0b90a0056f9743cdb797edec540d55c619ceee23266727f2d",
     "examples/agent-console/package.json": "dff2a7a501e3f86ed2ba845562218dc7d93f2b7e03a84faad93cfcd4a4424bad",
     "examples/agent-console/vite.config.ts": "4ec8b8e26c88a1b77c82414e9b69b95e532a11a2b042503b88c11abb733c1870",
-    "package.json": "1579a0a59c5957af0a7f6364ba597767363ebf0ef98ba0d2d919ad34cd10d777",
-    "pnpm-lock.yaml": "0e6ad455dd0293bd2779e1864847d5d5877e27cfff3a4c0353517eb054239634",
-    "tsdown.config.mjs": "a4b972df94efcf77fd46d73d12295d67950809384b981f7e8ee857ded7d928a1",
-    "scripts/build-cjs.mjs": "253a1e3bc18aba81ea15df05412429d6295210d08e66f1dd6bfc8cbe106234b7",
+    "package.json": "ae71f677900af41b9d306408a38682507ae92aa873f8622528852a8f04cc8bdf",
+    "pnpm-lock.yaml": "d9ea5bc3800494ae6b81e8499a3122f9388f9015541ccef25954eca7349b2f56",
+    "tsdown.config.mjs": "415fa32f8c9984559606f69fa5e8de2404cd9766ab4e749cd7e00cc098af0518",
+    "scripts/build-cjs.mjs": "e65f25aabe3a077e5d95fc53ab8f1df9e64c4915fe734c81ab7350ca9d05c4e0",
     "scripts/run-build-checked.mjs": "94ba7210a715891d28fe40bb4cb02694e9d0b7d7861a35d81d3457a6940d2afd",
     "scripts/check-build-warnings.mjs": "d09f9bc01718e15e1f36b70f5bcf6357183674971b23eeedd3188550016a0701",
     "scripts/profile-agent-console-abc.ts": "cedda9ba248d08d641a618b203d2ccd26f34f5bfc3ef82a08e7fdeb0c9f638ce",
@@ -29,7 +29,7 @@
     "scripts/profile-agent-console-cli.ts": "f990d7d144b6c8830c09339ebb8145624569eff85dbee9046ad122edbaa01544",
     "scripts/tsconfig.agent-console-profile-dist.json": "43f8b7a5af20c2c15bd025e0e0ee6e6dc35f6bd09a64e07fb6324fdbdfcb10f6"
   },
-  "verificationRef": "71eaf861449cdd1d768ea3dde00683417c5c32c5",
+  "verificationRef": "61336a43aa96150bcf73831b43c8543a3fbc1817",
   "verificationInputs": {
     "scripts/agent-console-cpu-profile.ts": "20330b5fae6506344a36c5d2703f745a7ac3376f996d50ce54653c41e488de1f",
     "scripts/agent-console-profile-environment.ts": "5b2df314bfe1afeab5e7c5af9c457212a366c76e56d4fa9fa584fa016fcc9504",
@@ -19264,7 +19264,7 @@
           }
         }
       },
-      "productionRef": "71eaf861449cdd1d768ea3dde00683417c5c32c5"
+      "productionRef": "61336a43aa96150bcf73831b43c8543a3fbc1817"
     },
     "B": {
       "schemaVersion": 2,
@@ -38465,7 +38465,7 @@
           }
         }
       },
-      "productionRef": "71eaf861449cdd1d768ea3dde00683417c5c32c5"
+      "productionRef": "61336a43aa96150bcf73831b43c8543a3fbc1817"
     },
     "C": {
       "schemaVersion": 2,
@@ -57689,7 +57689,7 @@
           }
         }
       },
-      "productionRef": "71eaf861449cdd1d768ea3dde00683417c5c32c5"
+      "productionRef": "61336a43aa96150bcf73831b43c8543a3fbc1817"
     }
   },
   "comparisons": {
