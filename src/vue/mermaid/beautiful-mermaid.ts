@@ -8,6 +8,11 @@ import {
   type TMermaidRenderer,
   type TMermaidTransientErrorClassifier,
 } from "../components/TMermaidText.js";
+import {
+  TMermaidImage as TBaseMermaidImage,
+  tMermaidImageProps,
+  type TMermaidImageCopyPayload,
+} from "../components/TMermaidImage.js";
 
 const BEAUTIFUL_MERMAID_INSTALL_HINT =
   "Install beautiful-mermaid and use TMermaidText from @simon_he/vue-tui/mermaid or @simon_he/vue-tui/agent/mermaid, or pass a custom renderer prop.";
@@ -214,6 +219,44 @@ export const TMermaidText = defineComponent({
   },
 });
 
-export const TMermaid = TMermaidText;
+/**
+ * Adaptive default mermaid component: renders the diagram as a terminal image
+ * (Kitty/iTerm2 graphics) when the terminal supports it, otherwise falls back
+ * to the beautiful-mermaid ASCII renderer, otherwise shows the raw source.
+ * While any pipeline is pending the raw source stays visible (source-first);
+ * streaming sources are only rendered once `final` is true.
+ */
+export const TMermaid = defineComponent({
+  name: "TMermaid",
+  inheritAttrs: false,
+  props: tMermaidImageProps,
+  emits: {
+    copy: (_payload: TMermaidImageCopyPayload) => true,
+  },
+  setup(props, { attrs, emit, slots }) {
+    return () => {
+      const { renderer: _legacyTextRenderer, ...rest } = props;
+      // Backward compatibility: on the old TMermaid alias the `renderer` prop
+      // was the ANSI text renderer. Keep it wired to the ANSI fallback
+      // (`textRenderer`) instead of the image rasterizer.
+      const textRenderer: TMermaidRenderer =
+        props.textRenderer ??
+        (props.renderer as unknown as TMermaidRenderer | undefined) ??
+        beautifulMermaidRenderer;
+      return h(
+        TBaseMermaidImage,
+        {
+          ...attrs,
+          ...rest,
+          textRenderer,
+          shouldRenderSource: props.shouldRenderSource ?? isSimpleMermaidFlowchartSource,
+          onCopy: (payload: TMermaidImageCopyPayload) => emit("copy", payload),
+        },
+        slots,
+      );
+    };
+  },
+});
+
 export const TBeautifulMermaidText = TMermaidText;
-export const TBeautifulMermaid = TMermaidText;
+export const TBeautifulMermaid = TMermaid;

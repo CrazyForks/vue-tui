@@ -218,6 +218,7 @@ describe("public API surface", () => {
         "markMermaidRenderErrorFatal",
         "normalizeMermaidImageOptions",
         "resolveMermaidImageColor",
+        "resolveMermaidSvgForResvg",
         "setMermaidImageRasterizer",
         "subscribeMermaidImage",
       ]
@@ -243,6 +244,7 @@ describe("public API surface", () => {
         "markMermaidRenderErrorFatal",
         "normalizeMermaidImageOptions",
         "resolveMermaidImageColor",
+        "resolveMermaidSvgForResvg",
         "setMermaidImageRasterizer",
         "subscribeMermaidImage",
       ]

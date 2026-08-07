@@ -298,6 +298,172 @@ function svgRenderFunction(
   return null;
 }
 
+/**
+ * @resvg/resvg-js (usvg) does not support CSS custom properties (`var()`) or
+ * `color-mix()`. beautiful-mermaid 1.x emits both, so feeding the raw SVG to
+ * resvg renders every shape black. This resolver inlines all `var(--x)` /
+ * `color-mix(in srgb, ...)` color expressions into concrete hex values before
+ * rasterization. Exported for tests.
+ */
+export function resolveMermaidSvgForResvg(
+  svg: string,
+  fallbackBg: string,
+  fallbackFg: string,
+): string {
+  const { bg, fg } = extractSvgRootStyleColors(svg, fallbackBg, fallbackFg);
+  const variables = extractSvgCssVariables(svg);
+  const root = { bg, fg };
+  let resolved = svg;
+
+  let guard = 0;
+  while ((resolved.includes("var(") || resolved.includes("color-mix(")) && guard++ < 500) {
+    const varIndex = resolved.lastIndexOf("var(");
+    const mixIndex = resolved.lastIndexOf("color-mix(");
+    const at = Math.max(varIndex, mixIndex);
+    if (at < 0) break;
+
+    const open = resolved.indexOf("(", at);
+    const close = findMatchingSvgParen(resolved, open);
+    if (open < 0 || close < 0) break;
+
+    const expr = resolved.slice(at, close + 1);
+    const color = resolveSvgColorExpr(expr, root, variables);
+    resolved = resolved.slice(0, at) + color + resolved.slice(close + 1);
+  }
+
+  return stripSvgStyleBlocks(resolved);
+}
+
+function extractSvgRootStyleColors(
+  svg: string,
+  fallbackBg: string,
+  fallbackFg: string,
+): { bg: string; fg: string } {
+  let bg = fallbackBg;
+  let fg = fallbackFg;
+  const styleMatch = /<svg\b[^>]*\bstyle="([^"]*)"/i.exec(svg);
+  if (styleMatch?.[1]) {
+    const bgMatch = /(?:^|;)\s*--bg\s*:\s*([^;]+)/i.exec(styleMatch[1]);
+    const fgMatch = /(?:^|;)\s*--fg\s*:\s*([^;]+)/i.exec(styleMatch[1]);
+    if (bgMatch?.[1]) bg = bgMatch[1].trim();
+    if (fgMatch?.[1]) fg = fgMatch[1].trim();
+  }
+  return { bg, fg };
+}
+
+function extractSvgCssVariables(svg: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const styleMatch = /<style[^>]*>([\s\S]*?)<\/style>/i.exec(svg);
+  if (!styleMatch?.[1]) return map;
+  const declaration = /(--[A-Za-z0-9_-]+)\s*:\s*([^;{}]+);/g;
+  let match: RegExpExecArray | null;
+  while ((match = declaration.exec(styleMatch[1])) !== null) {
+    map.set(match[1], match[2].trim());
+  }
+  return map;
+}
+
+function stripSvgStyleBlocks(svg: string): string {
+  return svg.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+}
+
+function findMatchingSvgParen(input: string, openIndex: number): number {
+  let depth = 0;
+  for (let i = openIndex; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function findTopLevelSvgComma(input: string): number {
+  let depth = 0;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if (ch === "," && depth === 0) return i;
+  }
+  return -1;
+}
+
+function normalizeHexColor(value: string): string | null {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());
+  if (!match) return null;
+  let hex = match[1];
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((ch) => ch + ch)
+      .join("");
+  }
+  return `#${hex.toLowerCase()}`;
+}
+
+function mixSrgbColors(aHex: string, bHex: string, percent: number): string {
+  const a = parseHexRgb(aHex);
+  const b = parseHexRgb(bHex);
+  const p = Math.max(0, Math.min(100, percent)) / 100;
+  const mix = (x: number, y: number) => Math.round(x * p + y * (1 - p));
+  const toHex = (value: number) => value.toString(16).padStart(2, "0");
+  return `#${toHex(mix(a[0], b[0]))}${toHex(mix(a[1], b[1]))}${toHex(mix(a[2], b[2]))}`;
+}
+
+function parseHexRgb(hex: string): [number, number, number] {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+function resolveSvgColorExpr(
+  expr: string,
+  root: Readonly<{ bg: string; fg: string }>,
+  variables: Map<string, string>,
+): string {
+  const value = expr.trim();
+
+  if (value.startsWith("var(")) {
+    const close = findMatchingSvgParen(value, 3);
+    if (close < 0) return value;
+    const inner = value.slice(4, close).trim();
+    const comma = findTopLevelSvgComma(inner);
+    const name = (comma < 0 ? inner : inner.slice(0, comma)).trim();
+    const fallback = comma < 0 ? "" : inner.slice(comma + 1).trim();
+
+    const direct = name === "--fg" ? root.fg : name === "--bg" ? root.bg : variables.get(name);
+    if (direct != null) return resolveSvgColorExpr(direct, root, variables);
+    if (fallback) return resolveSvgColorExpr(fallback, root, variables);
+    return value;
+  }
+
+  if (value.startsWith("color-mix(")) {
+    const close = findMatchingSvgParen(value, 9);
+    if (close < 0) return value;
+    const inner = value.slice(10, close).trim();
+    const afterMethod = inner.replace(/^in\s+srgb\s*,\s*/i, "");
+    const comma = findTopLevelSvgComma(afterMethod);
+    if (comma < 0) return value;
+
+    const left = afterMethod.slice(0, comma).trim();
+    const right = afterMethod.slice(comma + 1).trim();
+    const leftMatch = /^([^%\s]+)\s+([\d.]+)%$/.exec(left) ?? /^([\d.]+)%\s+([^%\s]+)$/.exec(left);
+    if (!leftMatch) return value;
+
+    const a = normalizeHexColor(resolveSvgColorExpr(leftMatch[1], root, variables));
+    const b = normalizeHexColor(resolveSvgColorExpr(right, root, variables));
+    if (!a || !b) return value;
+    return mixSrgbColors(a, b, Number(leftMatch[2]));
+  }
+
+  return normalizeHexColor(value) ?? value;
+}
+
 function loadBuiltinMermaidRasterizer(): Promise<TuiMermaidImageRasterizer | null> {
   if (!builtinRasterizerLoad) {
     builtinRasterizerLoad = (async () => {
@@ -326,8 +492,12 @@ function loadBuiltinMermaidRasterizer(): Promise<TuiMermaidImageRasterizer | nul
           const svgText = String(svg ?? "");
           if (!svgText.includes("<svg")) return null;
 
+          // resvg cannot resolve CSS var()/color-mix(); inline concrete colors
+          // first so the diagram is not rasterized as pure black.
+          const resolvedSvg = resolveMermaidSvgForResvg(svgText, options.bg, options.fg);
+
           const rendered = (
-            new Resvg(svgText, {
+            new Resvg(resolvedSvg, {
               background: "rgba(0,0,0,0)",
             }) as unknown as {
               render: () => { width?: number; height?: number; asPng?: () => Uint8Array };

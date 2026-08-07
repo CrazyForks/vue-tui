@@ -1136,7 +1136,11 @@ export function createStdoutRenderer(
             clearSequence,
             fallbackText: frame.fallbackText,
             resizeRedraw: true,
-            placementMoveWithoutClear: false,
+            // Preserve the caller's opt-in: when the placement moves (e.g.
+            // interactive wheel zoom) the render pass can replace the kitty
+            // placement in place and keep the original transmission sequence,
+            // so subsequent resizes stay on the cheap path.
+            placementMoveWithoutClear: Boolean(normalized.placementMoveWithoutClear),
           });
           pendingGraphicSignatures.set(frame.id, signature);
           recordTerminalGraphicTrace({

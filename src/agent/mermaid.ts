@@ -28,6 +28,7 @@ export {
   markMermaidRenderErrorFatal,
   normalizeMermaidImageOptions,
   resolveMermaidImageColor,
+  resolveMermaidSvgForResvg,
   setMermaidImageRasterizer,
   subscribeMermaidImage,
   TBeautifulMermaid,

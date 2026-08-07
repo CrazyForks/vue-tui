@@ -11,10 +11,17 @@ import {
   getCurrentInstance,
   h,
   inject,
+  markRaw,
   onBeforeUnmount,
   shallowRef,
   watch,
 } from "vue";
+import type {
+  TMermaidAsciiOptions,
+  TMermaidRenderEligibility,
+  TMermaidRenderer,
+  TMermaidResolvedAsciiOptions,
+} from "./TMermaidText.js";
 import { EventZIndexContextKey } from "../context.js";
 import {
   createTerminalGraphicPngSequence,
@@ -71,6 +78,13 @@ type TMermaidImageBoxChars = Readonly<{
 type TMermaidImageFit = Readonly<{
   displayW: number;
   displayH: number;
+}>;
+
+/** Accepted ANSI text output for a specific source + renderer signature. */
+type TMermaidImageTextSnapshot = Readonly<{
+  source: string;
+  signature: string;
+  lines: readonly string[];
 }>;
 
 const UNICODE_MERMAID_IMAGE_BOX_CHARS: TMermaidImageBoxChars = Object.freeze({
@@ -191,6 +205,25 @@ export const tMermaidImageProps = {
   maxWidthCells: { type: Number, default: undefined },
   maxHeightCells: { type: Number, default: undefined },
   padding: { type: Number, default: undefined },
+  // Adaptive ANSI fallback. When the terminal has no graphics protocol (or the
+  // image rasterizer fails for this source), the component renders the diagram
+  // as ASCII text through a text renderer before falling back to the raw
+  // source. Without a textRenderer the component stays image-or-raw.
+  textRenderer: {
+    type: Function as PropType<TMermaidRenderer>,
+    default: undefined,
+  },
+  // Eligibility guard for the ANSI fallback; returning false keeps the raw
+  // source visible (e.g. only render simple flowcharts as ASCII).
+  shouldRenderSource: {
+    type: Function as PropType<TMermaidRenderEligibility>,
+    default: undefined,
+  },
+  // Spacing/theme options forwarded to the ANSI text renderer.
+  textOptions: {
+    type: Object as PropType<TMermaidAsciiOptions>,
+    default: undefined,
+  },
   // Box chrome (mirrors TMermaidText).
   box: { type: Boolean, default: true },
   title: { type: String, default: "mermaid" },
@@ -204,6 +237,19 @@ export const tMermaidImageProps = {
   // Clicking the diagram (or the copy button) copies the full raw mermaid source.
   copyOnClick: { type: Boolean, default: true },
   ascii: { type: Boolean, default: false },
+  // Wheel zoom (Kitty graphics only): with the zoom modifier held, wheel over
+  // the image zooms centered on the mouse, clamped to the container area.
+  // Without the modifier the wheel passes through to the surrounding scroll
+  // container (historical-message scrolling is never blocked). iTerm2 has no
+  // in-place resize sequence, so zoom stays disabled there.
+  zoomOnWheel: { type: Boolean, default: true },
+  zoomModifier: {
+    type: String as PropType<"meta" | "ctrl" | "metaCtrl" | "none">,
+    default: "metaCtrl",
+  },
+  minZoom: { type: Number, default: 1 },
+  maxZoom: { type: Number, default: 6 },
+  zoomSensitivity: { type: Number, default: 0.002 },
 } as const;
 
 export type TMermaidImageProps = ExtractPublicPropTypes<typeof tMermaidImageProps>;
@@ -223,8 +269,23 @@ export const TMermaidImage = defineComponent({
     const parentEventZ = inject(EventZIndexContextKey, computed(() => 0) as any);
 
     const imageCells = shallowRef<TuiMermaidImageCells | null>(null);
+    const textSnapshot = shallowRef<TMermaidImageTextSnapshot | null>(null);
+    const zoomScale = shallowRef(1);
+    const panX = shallowRef(0);
+    const panY = shallowRef(0);
     const documentVersion = shallowRef(0);
     const copied = shallowRef(false);
+
+    type MermaidDragState = Readonly<{
+      startX: number;
+      startY: number;
+      panStartX: number;
+      panStartY: number;
+    }>;
+    let dragState: MermaidDragState | null = null;
+    let dragMoved = false;
+    let lastDragAt = 0;
+    const DRAG_CLICK_SUPPRESS_MS = 250;
 
     let builtOnce = false;
     let renderVersion = 0;
@@ -234,6 +295,7 @@ export const TMermaidImage = defineComponent({
     let copiedTimer: ReturnType<typeof setTimeout> | null = null;
     let copyRequestVersion = 0;
     let activeGraphicId: string | null = null;
+    let activeImageSignature = "";
 
     const source = computed(() => props.code ?? props.content ?? "");
 
@@ -309,6 +371,96 @@ export const TMermaidImage = defineComponent({
       }
     }
 
+    function clampZoom(zoom: number): number {
+      const min = Number.isFinite(Number(props.minZoom))
+        ? Math.max(0.05, Number(props.minZoom))
+        : 1;
+      const max = Number.isFinite(Number(props.maxZoom))
+        ? Math.max(min, Number(props.maxZoom))
+        : Math.max(min, 6);
+      return Math.min(max, Math.max(min, zoom));
+    }
+
+    function zoomSensitivity(): number {
+      const value = Number(props.zoomSensitivity);
+      return Number.isFinite(value) && value > 0 ? value : 0.002;
+    }
+
+    /**
+     * Wheel delta -> multiplicative zoom factor. Discrete notches (CLI wheel
+     * reporting and browser line-mode deltas) map to one step each; trackpad
+     * pixel deltas use a continuous exponential so small movements stay smooth.
+     */
+    function wheelZoomFactor(deltaY: number, deltaMode: number | undefined): number {
+      const sign = deltaY > 0 ? -1 : 1;
+      const sensitivity = zoomSensitivity();
+      const abs = Math.abs(deltaY);
+      const mode = deltaMode ?? 0;
+      const isNotch = mode === 1 || (abs > 0 && abs <= 3 && Number.isInteger(deltaY));
+      const magnitude = isNotch ? 100 : abs;
+      return Math.exp(sign * magnitude * sensitivity);
+    }
+
+    function resetZoomState(): void {
+      if (zoomScale.value === 1 && panX.value === 0 && panY.value === 0) return;
+      zoomScale.value = 1;
+      panX.value = 0;
+      panY.value = 0;
+      dragState = null;
+    }
+
+    function hasZoomModifier(event: TerminalPointerEvent): boolean {
+      const modifier = props.zoomModifier ?? "metaCtrl";
+      if (modifier === "none") return true;
+      if (modifier === "meta") return event.metaKey === true;
+      if (modifier === "ctrl") return event.ctrlKey === true;
+      return event.ctrlKey === true || event.metaKey === true;
+    }
+
+    /**
+     * Clamp the pan so the zoomed image always covers the container area
+     * (no empty gaps, no over-scroll beyond the image edges).
+     */
+    function clampPan(): void {
+      const inner = innerRectFrom(fullRect.value);
+      const fit = displayFit.value;
+      if (!fit || inner.w <= 0 || inner.h <= 0) return;
+
+      const zoom = clampZoom(zoomScale.value);
+      const fullW = fit.displayW * zoom;
+      const fullH = fit.displayH * zoom;
+      const fitOriginX =
+        inner.x + (inner.w > fit.displayW ? Math.floor((inner.w - fit.displayW) / 2) : 0);
+
+      let nextX = panX.value;
+      let nextY = panY.value;
+      if (fullW <= inner.w) {
+        nextX = 0;
+      } else {
+        nextX = Math.min(
+          inner.x - fitOriginX,
+          Math.max(inner.x + inner.w - fullW - fitOriginX, nextX),
+        );
+      }
+      if (fullH <= inner.h) {
+        nextY = 0;
+      } else {
+        nextY = Math.min(0, Math.max(inner.h - fullH, nextY));
+      }
+      if (nextX !== panX.value) panX.value = nextX;
+      if (nextY !== panY.value) panY.value = nextY;
+    }
+
+    /** Set the current image, resetting wheel zoom whenever the PNG changes. */
+    function setImageCells(cells: TuiMermaidImageCells | null): void {
+      const signature = cells ? cells.base64 : "";
+      if (signature !== activeImageSignature) {
+        activeImageSignature = signature;
+        resetZoomState();
+      }
+      imageCells.value = cells;
+    }
+
     const hasBox = computed(() => props.box !== false);
 
     const normalizedWidth = computed(() => {
@@ -323,6 +475,14 @@ export const TMermaidImage = defineComponent({
     );
 
     const sourceLines = computed<readonly string[]>(() => splitRenderedOutput(source.value));
+
+    const displayLines = computed<readonly string[]>(() => {
+      const snapshot = textSnapshot.value;
+      if (snapshot && snapshot.source === source.value && hasVisibleTextOutput(snapshot.lines)) {
+        return snapshot.lines;
+      }
+      return sourceLines.value;
+    });
 
     const currentStyle = computed<Style>(() => props.style ?? defaultStyle.value);
 
@@ -352,7 +512,7 @@ export const TMermaidImage = defineComponent({
 
     const contentHeight = computed(() => {
       if (!autoHeight.value) return fixedInnerHeight.value;
-      return displayFit.value?.displayH ?? Math.max(1, sourceLines.value.length);
+      return displayFit.value?.displayH ?? Math.max(1, displayLines.value.length);
     });
 
     const fullHeight = computed(() => {
@@ -397,7 +557,7 @@ export const TMermaidImage = defineComponent({
       return withTextWidthProvider(widthProvider, () => padEndByCells(text, width));
     }
 
-    function resolveImageOptions(): TuiMermaidImageOptions {
+    function resolveImageOptions(): ReturnType<typeof normalizeMermaidImageOptions> {
       const resolvedFg = props.fg ?? resolveMermaidImageColor(currentStyle.value.fg) ?? undefined;
       return normalizeMermaidImageOptions({
         cellWidthPx: props.cellWidthPx,
@@ -409,6 +569,75 @@ export const TMermaidImage = defineComponent({
         maxHeightCells: props.maxHeightCells,
         padding: props.padding,
       });
+    }
+
+    function hasVisibleTextOutput(lines: readonly string[]): boolean {
+      return lines.some((line) => line.trim().length > 0);
+    }
+
+    function resolveTextOptions(): TMermaidResolvedAsciiOptions {
+      const base = props.textOptions ?? {};
+      return {
+        ...base,
+        useAscii: props.ascii,
+        colorMode: "none",
+      };
+    }
+
+    function textRenderSignature(code: string): string {
+      return [
+        code,
+        props.ascii ? "a" : "",
+        JSON.stringify(props.textOptions ?? null),
+        props.textRenderer != null ? "r" : "",
+        props.shouldRenderSource != null ? "g" : "",
+      ].join("\x1F");
+    }
+
+    async function renderTextWithTimeout(
+      renderer: TMermaidRenderer,
+      code: string,
+      options: TMermaidResolvedAsciiOptions,
+    ): Promise<string> {
+      const timeoutMs = normalizeNonNegativeInt(props.renderTimeoutMs, 0);
+      if (timeoutMs <= 0) return await renderer(code, options);
+
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      try {
+        return await Promise.race([
+          Promise.resolve().then(() => renderer(code, options)),
+          new Promise<string>((_resolve, reject) => {
+            timer = setTimeout(() => reject(new Error("Mermaid text render timeout")), timeoutMs);
+          }),
+        ]);
+      } finally {
+        if (timer != null) clearTimeout(timer);
+      }
+    }
+
+    async function runCustomRasterizer(
+      code: string,
+      options: Required<TuiMermaidImageOptions>,
+    ): Promise<TuiMermaidImageCells | null> {
+      const renderer = props.renderer;
+      if (!renderer) return null;
+      const timeoutMs = normalizeNonNegativeInt(props.renderTimeoutMs, 0);
+      const run = () => renderer(code, options);
+      if (timeoutMs <= 0) return (await run()) ?? null;
+
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      try {
+        return (
+          (await Promise.race([
+            run(),
+            new Promise<TuiMermaidImageCells | null>((resolve) => {
+              timer = setTimeout(() => resolve(null), timeoutMs);
+            }),
+          ])) ?? null
+        );
+      } finally {
+        if (timer != null) clearTimeout(timer);
+      }
     }
 
     function shouldSkipRenderForSize(code: string): boolean {
@@ -447,61 +676,127 @@ export const TMermaidImage = defineComponent({
       }
     }
 
-    async function renderImage(version: number): Promise<void> {
+    async function renderTextFallback(version: number): Promise<void> {
+      const code = source.value;
+      const renderer = props.textRenderer;
+      if (!renderer) return;
+
+      const guard = props.shouldRenderSource;
+      if (guard) {
+        let eligible = false;
+        try {
+          eligible = guard(code, { final: props.final, streaming: props.streaming });
+        } catch {
+          eligible = false;
+        }
+        if (!eligible) return;
+      }
+
+      try {
+        const rendered = await renderTextWithTimeout(renderer, code, resolveTextOptions());
+        if (!alive || version !== renderVersion) return;
+        const lines = splitRenderedOutput(rendered);
+        if (!hasVisibleTextOutput(lines)) return;
+        textSnapshot.value = markRaw({
+          source: code,
+          signature: textRenderSignature(code),
+          lines: markRaw(lines),
+        });
+        bump();
+      } catch {
+        // Renderer failed or timed out: keep the raw source visible.
+      }
+    }
+
+    /**
+     * Adaptive presentation state machine:
+     *
+     *   raw source
+     *     -> image (terminal supports Kitty/iTerm2 graphics and the PNG
+     *        rasterizer succeeds), else
+     *     -> ANSI text (a textRenderer is available and the source passes the
+     *        eligibility guard), else
+     *     -> raw source
+     *
+     * While any pipeline is pending the raw source stays visible (source-first).
+     */
+    async function renderPresentation(version: number): Promise<void> {
       const code = source.value;
       if (!code.trim()) {
         if (!alive || version !== renderVersion) return;
-        imageCells.value = null;
+        setImageCells(null);
+        textSnapshot.value = null;
         bump();
         return;
       }
 
       if (waitingForStreamingSourceToFinish.value || shouldSkipRenderForSize(code)) {
         if (!alive || version !== renderVersion) return;
-        imageCells.value = null;
+        setImageCells(null);
+        textSnapshot.value = null;
         bump();
         return;
       }
-
-      // Source-first invariant: while the image is pending, keep the raw source
-      // visible so the cell area is never blank.
-      imageCells.value = null;
-      bump();
 
       const protocol = graphicsProtocol.value;
-      if (!protocol) {
-        // Terminal has no graphics protocol: stay on raw source text.
-        return;
-      }
-
       const options = resolveImageOptions();
-      const cached = getCachedMermaidImage(code, options);
+      const cached = protocol && !props.renderer ? getCachedMermaidImage(code, options) : null;
       if (cached) {
         if (!alive || version !== renderVersion) return;
-        imageCells.value = cached;
+        setImageCells(cached);
+        textSnapshot.value = null;
         bump();
         return;
       }
 
-      if (!isMermaidImageRendererReady()) {
-        void loadMermaidImageRenderer().then((ready) => {
-          if (!alive || version !== renderVersion || !ready) return;
-          void renderImage(version);
-        });
-        return;
+      // Source-first invariant: while a presentation is pending, keep the raw
+      // source visible so the cell area is never blank. A text snapshot that is
+      // still valid for the exact same source + renderer signature is kept so
+      // unrelated re-schedules (e.g. another instance's image completing) do not
+      // re-render the ANSI diagram needlessly.
+      const currentSignature = textRenderSignature(code);
+      const keepText =
+        textSnapshot.value != null &&
+        textSnapshot.value.source === code &&
+        textSnapshot.value.signature === currentSignature;
+      if (!keepText) {
+        setImageCells(null);
+        textSnapshot.value = null;
+        bump();
       }
 
-      const result = await rasterizeWithTimeout(code, options);
-      if (!alive || version !== renderVersion) return;
-      imageCells.value = result;
-      bump();
+      if (protocol) {
+        let result: TuiMermaidImageCells | null = null;
+        if (props.renderer) {
+          result = await runCustomRasterizer(code, options);
+        } else if (isMermaidImageRendererReady()) {
+          result = await rasterizeWithTimeout(code, options);
+        } else {
+          void loadMermaidImageRenderer().then((ready) => {
+            if (!alive || version !== renderVersion || !ready) return;
+            void renderPresentation(version);
+          });
+          return;
+        }
+        if (!alive || version !== renderVersion) return;
+        if (result) {
+          setImageCells(result);
+          textSnapshot.value = null;
+          bump();
+          return;
+        }
+        // Image unavailable for this source: fall through to the ANSI renderer.
+      }
+
+      if (keepText) return;
+      await renderTextFallback(version);
     }
 
     function scheduleRender(): void {
       const version = ++renderVersion;
 
       resetCopyFeedback(false);
-      imageCells.value = null;
+      setImageCells(null);
 
       if (waitingForStreamingSourceToFinish.value) {
         builtOnce = true;
@@ -512,7 +807,7 @@ export const TMermaidImage = defineComponent({
 
       if (!builtOnce || !props.streaming) {
         builtOnce = true;
-        void renderImage(version);
+        void renderPresentation(version);
         return;
       }
 
@@ -524,11 +819,11 @@ export const TMermaidImage = defineComponent({
         run: () => {
           if (!alive) return;
           if (version !== renderVersion) return;
-          void renderImage(version);
+          void renderPresentation(version);
         },
       });
       if (accepted === false) {
-        void renderImage(version);
+        void renderPresentation(version);
       }
     }
 
@@ -548,7 +843,11 @@ export const TMermaidImage = defineComponent({
         () => props.final,
         () => props.maxRenderSourceChars,
         () => props.maxRenderSourceLines,
-        graphicsOutputVersion,
+        () => props.textRenderer,
+        () => props.shouldRenderSource,
+        () => props.textOptions,
+        () => props.ascii,
+        () => props.zoomModifier,
       ],
       () => {
         scheduleRender();
@@ -558,8 +857,15 @@ export const TMermaidImage = defineComponent({
 
     const unsubscribeMermaidImage = subscribeMermaidImage(() => {
       if (!alive) return;
-      // Another instance may have rasterized the same source; re-check the cache.
-      scheduleRender();
+      // Another instance may have rasterized the same source; promote a newly
+      // cached image without re-running the ANSI fallback pipeline.
+      if (!graphicsProtocol.value || props.renderer) return;
+      const cached = getCachedMermaidImage(source.value, resolveImageOptions());
+      if (!cached) return;
+      if (!alive) return;
+      setImageCells(cached);
+      textSnapshot.value = null;
+      bump();
     });
 
     const unsubscribeGraphicsOutput = subscribeTerminalGraphicsOutput(terminal, () => {
@@ -679,7 +985,7 @@ export const TMermaidImage = defineComponent({
     function contentLine(rowIndex: number, width: number, pad: boolean): string {
       const showImage =
         imageCells.value != null && displayFit.value != null && graphicsProtocol.value != null;
-      const src = showImage ? spaces(width) : (sourceLines.value[rowIndex] ?? "");
+      const src = showImage ? spaces(width) : (displayLines.value[rowIndex] ?? "");
       const clipped = sliceCells(src, width);
       return pad ? padCells(clipped, width) : clipped;
     }
@@ -706,13 +1012,37 @@ export const TMermaidImage = defineComponent({
         return;
       }
 
-      const offsetX = inner.w > fit.displayW ? Math.floor((inner.w - fit.displayW) / 2) : 0;
-      const rect = {
-        x: inner.x + offsetX,
-        y: inner.y,
-        w: fit.displayW,
-        h: fit.displayH,
+      // Wheel zoom viewport: the full zoomed image rect may exceed the
+      // container; the visible rect is the intersection, which the kitty
+      // placement crops to (source crop controls). At zoom 1 the full rect
+      // equals the fit rect and no crop is emitted (backward compatible).
+      const zoom = clampZoom(zoomScale.value);
+      const fitW = fit.displayW;
+      const fitH = fit.displayH;
+      const fitOriginX = inner.x + (inner.w > fitW ? Math.floor((inner.w - fitW) / 2) : 0);
+      const fullRect: Rect = {
+        x: fitOriginX + panX.value,
+        y: inner.y + panY.value,
+        w: fitW * zoom,
+        h: fitH * zoom,
       };
+      const visible = intersectRect(fullRect, inner);
+      if (!visible || visible.w < 1 || visible.h < 1) {
+        queueClearGraphic();
+        return;
+      }
+
+      // Round to integer cells for the placement while keeping sub-cell pan
+      // smoothing inside the zoom/pan state.
+      const rectX = Math.max(inner.x, Math.round(visible.x));
+      const rectY = Math.max(inner.y, Math.round(visible.y));
+      const rect: Rect = {
+        x: rectX,
+        y: rectY,
+        w: Math.max(1, Math.min(inner.x + inner.w, rectX + Math.round(visible.w)) - rectX),
+        h: Math.max(1, Math.min(inner.y + inner.h, rectY + Math.round(visible.h)) - rectY),
+      };
+
       const imageId = stableTerminalGraphicNumericId(`mermaid-image:${uid}:${renderVersion}:img`);
       const placementId = stableTerminalGraphicNumericId(
         `mermaid-image:${uid}:${renderVersion}:plc`,
@@ -726,10 +1056,16 @@ export const TMermaidImage = defineComponent({
         rows: cells.heightCells,
         sourceWidth: cells.naturalWidth,
         sourceHeight: cells.naturalHeight,
-        placementColumns: fit.displayW,
-        placementRows: fit.displayH,
+        placementColumns: rect.w,
+        placementRows: rect.h,
+        // Keep the initial transmission stable at the fit size without a
+        // source crop so wheel zoom can replace the placement (a=p) without
+        // re-sending the PNG, and every placement references the full image.
+        transmissionColumns: fitW,
+        transmissionRows: fitH,
+        cropTransmission: false,
         rect,
-        fullRect: rect,
+        fullRect,
         zIndex: -1,
         fallback: source.value,
       });
@@ -758,13 +1094,16 @@ export const TMermaidImage = defineComponent({
         id,
         x: rect.x,
         y: rect.y,
-        w: fit.displayW,
-        h: fit.displayH,
+        w: rect.w,
+        h: rect.h,
         protocol,
         sequence: built.sequence,
         resizeSequence: built.resizeSequence,
         clearSequence: built.clearSequence,
         fallbackText: source.value,
+        // Same image data + placement id: let the stdout renderer replace the
+        // placement with the resize sequence instead of re-sending the PNG.
+        placementMoveWithoutClear: protocol === "kitty",
       });
       if (accepted) {
         activeGraphicId = id;
@@ -794,7 +1133,7 @@ export const TMermaidImage = defineComponent({
     });
 
     const contentHitRect = computed<Rect>(() => {
-      if (!visible.value || !props.copyOnClick) return { x: 0, y: 0, w: 0, h: 0 };
+      if (!visible.value) return { x: 0, y: 0, w: 0, h: 0 };
       const full = fullRect.value;
       if (full.w <= 0 || full.h <= 0) return { x: 0, y: 0, w: 0, h: 0 };
       const inner = innerRectFrom(full);
@@ -853,6 +1192,8 @@ export const TMermaidImage = defineComponent({
     function onCopyClick(event: TerminalPointerEvent): void {
       event.preventDefault();
       event.stopPropagation();
+      // Suppress copy when the click is the tail of a drag-to-pan gesture.
+      if (Date.now() - lastDragAt < DRAG_CLICK_SUPPRESS_MS) return;
       void copySource();
     }
 
@@ -861,6 +1202,114 @@ export const TMermaidImage = defineComponent({
       event.preventDefault();
       event.stopPropagation();
       void copySource();
+    }
+
+    const zoomEnabled = computed(
+      () =>
+        props.zoomOnWheel !== false &&
+        imageCells.value != null &&
+        displayFit.value != null &&
+        graphicsProtocol.value === "kitty" &&
+        contentHitRect.value.w > 0 &&
+        contentHitRect.value.h > 0,
+    );
+
+    const dragEnabled = computed(
+      () =>
+        props.zoomOnWheel !== false &&
+        imageCells.value != null &&
+        displayFit.value != null &&
+        graphicsProtocol.value === "kitty" &&
+        zoomScale.value > 1 &&
+        contentHitRect.value.w > 0 &&
+        contentHitRect.value.h > 0,
+    );
+
+    function onWheel(event: TerminalPointerEvent): void {
+      if (!zoomEnabled.value) return;
+      // Without the zoom modifier the wheel must pass through so surrounding
+      // scroll containers (historical messages) scroll normally.
+      if (!hasZoomModifier(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const deltaY = event.deltaY ?? 0;
+      if (!Number.isFinite(deltaY) || deltaY === 0) return;
+
+      const inner = innerRectFrom(fullRect.value);
+      const fit = displayFit.value;
+      if (!fit || inner.w <= 0 || inner.h <= 0) return;
+
+      const currentZoom = clampZoom(zoomScale.value);
+      const fitW = fit.displayW;
+      const fitH = fit.displayH;
+      const fitOriginX = inner.x + (inner.w > fitW ? Math.floor((inner.w - fitW) / 2) : 0);
+      const fullX = fitOriginX + panX.value;
+      const fullY = inner.y + panY.value;
+
+      const mouseX = event.cellX;
+      const mouseY = event.cellY;
+      const fx = currentZoom > 0 ? (mouseX - fullX) / (fitW * currentZoom) : 0.5;
+      const fy = currentZoom > 0 ? (mouseY - fullY) / (fitH * currentZoom) : 0.5;
+
+      const nextZoom = clampZoom(currentZoom * wheelZoomFactor(deltaY, event.deltaMode));
+      if (nextZoom === currentZoom) return;
+
+      const nextW = fitW * nextZoom;
+      const nextH = fitH * nextZoom;
+      let nextX = mouseX - fx * nextW;
+      let nextY = mouseY - fy * nextH;
+
+      // Clamp the zoomed image so it always covers the container area.
+      if (nextW <= inner.w) nextX = inner.x + (inner.w - nextW) / 2;
+      else nextX = Math.min(inner.x, Math.max(inner.x + inner.w - nextW, nextX));
+      if (nextH <= inner.h) nextY = inner.y + (inner.h - nextH) / 2;
+      else nextY = Math.min(inner.y, Math.max(inner.y + inner.h - nextH, nextY));
+
+      zoomScale.value = nextZoom;
+      panX.value = nextX - fitOriginX;
+      panY.value = nextY - inner.y;
+      clampPan();
+      bump();
+    }
+
+    function onPointerDown(event: TerminalPointerEvent): void {
+      if (!dragEnabled.value) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragState = {
+        startX: event.cellX,
+        startY: event.cellY,
+        panStartX: panX.value,
+        panStartY: panY.value,
+      };
+      dragMoved = false;
+    }
+
+    function onPointerMove(event: TerminalPointerEvent): void {
+      const drag = dragState;
+      if (!drag) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const dx = event.cellX - drag.startX;
+      const dy = event.cellY - drag.startY;
+      if (!dragMoved && Math.abs(dx) + Math.abs(dy) >= 1) dragMoved = true;
+      if (!dragMoved) return;
+
+      panX.value = drag.panStartX + dx;
+      panY.value = drag.panStartY + dy;
+      clampPan();
+      bump();
+    }
+
+    function onPointerUp(event: TerminalPointerEvent): void {
+      const drag = dragState;
+      if (!drag) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragState = null;
+      if (dragMoved) lastDragAt = Date.now();
     }
 
     const copyNodeActive = computed(
@@ -884,7 +1333,7 @@ export const TMermaidImage = defineComponent({
     const contentNodeActive = computed(
       () =>
         visible.value &&
-        props.copyOnClick &&
+        (props.copyOnClick || zoomEnabled.value || dragEnabled.value) &&
         contentHitRect.value.w > 0 &&
         contentHitRect.value.h > 0,
     );
@@ -897,7 +1346,11 @@ export const TMermaidImage = defineComponent({
       selectable: false,
       handlers: contentNodeActive.value
         ? {
-            click: onCopyClick,
+            click: props.copyOnClick ? onCopyClick : undefined,
+            wheel: zoomEnabled.value ? onWheel : undefined,
+            pointerdown: dragEnabled.value ? onPointerDown : undefined,
+            pointermove: dragEnabled.value ? onPointerMove : undefined,
+            pointerup: dragEnabled.value ? onPointerUp : undefined,
           }
         : {},
     }));
@@ -911,6 +1364,11 @@ export const TMermaidImage = defineComponent({
         fullRect.value,
         imageCells.value,
         displayFit.value,
+        zoomScale.value,
+        panX.value,
+        panY.value,
+        textSnapshot.value,
+        displayLines.value,
         sourceLines.value,
         currentStyle.value,
         props.clear,

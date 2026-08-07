@@ -108,14 +108,15 @@ type RendererCapabilities = Readonly<{
 
 ### 各组件的降级行为
 
-| 组件                                            | 需要协议                    | 无协议时的降级                                      |
-| ----------------------------------------------- | --------------------------- | --------------------------------------------------- |
-| `TVideo`                                        | kitty 或 iterm2             | `gray8` ASCII art（block 字符低保真输出，功能完整） |
-| `T3DViewport`                                   | kitty 或 iterm2             | 同 `TVideo`，通过 `gray8` ASCII art 降级            |
-| `TAgentTerminalGraphic`（mermaid、KaTeX、图片） | kitty / iterm2 / sixel 任一 | 渲染 `fallback` 文本；不显示图形内容                |
-| `TMermaidImage`                                 | kitty 或 iterm2             | 显示原始 mermaid 源码                               |
-| `TMarkdownText` / `TVirtualMarkdown` 内嵌图形   | 同上                        | 内嵌图形段落退化为 `fallbackText`；文本段正常渲染   |
-| 所有其他组件                                    | 无                          | 纯文本渲染，无依赖                                  |
+| 组件                                            | 需要协议                    | 无协议时的降级                                                |
+| ----------------------------------------------- | --------------------------- | ------------------------------------------------------------- |
+| `TVideo`                                        | kitty 或 iterm2             | `gray8` ASCII art（block 字符低保真输出，功能完整）           |
+| `T3DViewport`                                   | kitty 或 iterm2             | 同 `TVideo`，通过 `gray8` ASCII art 降级                      |
+| `TAgentTerminalGraphic`（mermaid、KaTeX、图片） | kitty / iterm2 / sixel 任一 | 渲染 `fallback` 文本；不显示图形内容                          |
+| `TMermaidImage`                                 | kitty 或 iterm2             | 显示原始 mermaid 源码；传 `textRenderer` 时降级为 ANSI 文本图 |
+| `TMermaid`（adaptive，/mermaid 入口）           | kitty 或 iterm2             | 图片 → ANSI 文本图 → 原始源码                                 |
+| `TMarkdownText` / `TVirtualMarkdown` 内嵌图形   | 同上                        | 内嵌图形段落退化为 `fallbackText`；文本段正常渲染             |
+| 所有其他组件                                    | 无                          | 纯文本渲染，无依赖                                            |
 
 > **注意：`sixel` 协议只被 `TAgentTerminalGraphic` 消费**；`TVideo` / `T3DViewport` 的像素帧路径只支持 kitty 和 iTerm2。如果你只有 sixel 终端，视频和 3D 组件会以 ASCII art 输出，而 mermaid / 数学公式 / 图片可以正常渲染。
 

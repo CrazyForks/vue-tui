@@ -38,6 +38,7 @@ export {
   loadMermaidImageRenderer,
   normalizeMermaidImageOptions,
   resolveMermaidImageColor,
+  resolveMermaidSvgForResvg,
   setMermaidImageRasterizer,
   subscribeMermaidImage,
 } from "./vue/mermaid/mermaid-image.js";

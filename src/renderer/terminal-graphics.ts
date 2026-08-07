@@ -1218,6 +1218,23 @@ export type CreateTerminalGraphicPngSequenceOptions = Readonly<{
   sourceHeight?: number;
   placementColumns?: number;
   placementRows?: number;
+  /**
+   * Optional placement used by the initial transmission (a=T). Defaults to
+   * `placementColumns` / `placementRows`. When the resize placement changes
+   * over time (e.g. mermaid wheel zoom), keep this stable so the stdout
+   * renderer can replace the placement with the resize sequence instead of
+   * re-sending the PNG (the renderer compares the full transmission string).
+   */
+  transmissionColumns?: number;
+  transmissionRows?: number;
+  /**
+   * Whether the initial transmission (a=T) carries the source crop. Defaults
+   * to `true` (current behavior). Set to `false` when the same image must be
+   * re-placed with different crops later (e.g. wheel zoom): the transmission
+   * then stores the full image so every resize placement can reference any
+   * region of it.
+   */
+  cropTransmission?: boolean;
   rect?: TerminalGraphicPngViewport;
   fullRect?: TerminalGraphicPngViewport;
   zIndex?: number;
@@ -1317,6 +1334,21 @@ export function createTerminalGraphicPngSequence(
       if (crop) placement = { ...placement, ...crop };
     }
 
+    const cropTransmission = options.cropTransmission !== false;
+    const transmissionPlacement: Readonly<{
+      columns: number | undefined;
+      rows?: number;
+      sourceX?: number;
+      sourceY?: number;
+      sourceWidth?: number;
+      sourceHeight?: number;
+    }> = cropTransmission
+      ? placement
+      : {
+          columns: options.transmissionColumns ?? options.placementColumns,
+          rows: options.transmissionRows ?? options.placementRows,
+        };
+
     return {
       type: "sequence",
       protocol: "kitty",
@@ -1324,7 +1356,7 @@ export function createTerminalGraphicPngSequence(
         imageId: options.imageId,
         placementId: options.placementId,
         zIndex: options.zIndex,
-        ...placement,
+        ...transmissionPlacement,
       }),
       resizeSequence: createKittyPlacementSequence({
         imageId: options.imageId,

@@ -267,7 +267,7 @@ Public helper `linkifyTextSegments("")` returns an empty segment array; non-empt
 
 ## TMermaid / TMermaidImage / TMermaidText
 
-Mermaid 组件详见下方 [TMermaidText](#tmermaidtext) 与 [TMermaidImage](#tmermaidimage)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。图片模式 `TMermaidImage` 走 Kitty/iTerm2 图形协议，需要额外安装 `@resvg/resvg-js`。
+Mermaid 组件详见下方 [TMermaidText](#tmermaidtext) 与 [TMermaidImage](#tmermaidimage)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。`TMermaid`（adaptive）支持图片的终端出图，否则回退 ANSI / 源码；图片模式 `TMermaidImage` 走 Kitty/iTerm2 图形协议，需要额外安装 `@resvg/resvg-js`。
 
 ## TAgentTerminalGraphic
 
@@ -1226,7 +1226,7 @@ Public helper `linkifyTextSegments("")` returns an empty segment array; non-empt
 
 ## TMermaid / TMermaidImage / TMermaidText
 
-Mermaid 组件详见下方 [TMermaidText](#tmermaidtext) 与 [TMermaidImage](#tmermaidimage)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。图片模式 `TMermaidImage` 走 Kitty/iTerm2 图形协议，需要额外安装 `@resvg/resvg-js`。
+Mermaid 组件详见下方 [TMermaidText](#tmermaidtext) 与 [TMermaidImage](#tmermaidimage)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。`TMermaid`（adaptive）支持图片的终端出图，否则回退 ANSI / 源码；图片模式 `TMermaidImage` 走 Kitty/iTerm2 图形协议，需要额外安装 `@resvg/resvg-js`。
 
 ## TAgentTerminalGraphic
 
@@ -1922,7 +1922,11 @@ Markdown renderer for static or streaming text content。它走独立的 `parser
 
 ## TMermaid
 
-`TMermaid` 是 `TMermaidText` 的短别名，适合 agent console 里直接展示 Mermaid flowchart / sequence / state diagram 的 terminal text 输出。
+自适应 Mermaid 组件：**默认显示 raw source**，然后按终端能力自动升级到最佳呈现。
+
+- 终端支持 **Kitty / iTerm2 图形协议** 且 PNG rasterize 成功 → 显示图片（`beautiful-mermaid` SVG + `@resvg/resvg-js`）。
+- 不支持图片、或图片渲染失败 → 回退到 **ANSI 文本图**（`beautiful-mermaid` 的 `renderMermaidASCII`）。
+- ANSI 也不可用 / 源码太复杂 / renderer 失败或超时 → 保持 **raw source**。
 
 > Advanced import: `@simon_he/vue-tui/vue`
 >
@@ -1932,15 +1936,13 @@ Markdown renderer for static or streaming text content。它走独立的 `parser
 >
 > Agent Beautiful Mermaid bridge import: `@simon_he/vue-tui/agent/mermaid`
 
-> 注意：`@simon_he/vue-tui/vue` 和 `@simon_he/vue-tui/agent` 导出的 `TMermaidText` 是 renderer-agnostic primitive，不会自动 import `beautiful-mermaid`。
+> 注意：`@simon_he/vue-tui/vue` 和 `@simon_he/vue-tui/agent` 导出的 `TMermaid` / `TMermaidText` 是 renderer-agnostic primitive，不会自动 import `beautiful-mermaid`，也不检测图形能力。
 >
-> 需要安装依赖后零配置使用内置 renderer 时，请从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入 `TMermaidText` / `TMermaid`。
+> `@simon_he/vue-tui/mermaid` 和 `@simon_he/vue-tui/agent/mermaid` 导出的 `TMermaid` 是 **adaptive 默认**：内置 beautiful-mermaid ANSI bridge（`textRenderer`）与图片 rasterizer，默认用 `isSimpleMermaidFlowchartSource` 限制 ANSI 回退只处理简单 flowchart，避免复杂图在非图片终端上出现对齐错乱。
 >
-> `@simon_he/vue-tui/mermaid` 和 `@simon_he/vue-tui/agent/mermaid` 的内置 beautiful-mermaid wrapper 默认使用 size guard + simple-flowchart-only guard；`final=true` 后仅对简单 flowchart 尝试渲染。renderer 成功时原子替换为渲染结果；复杂 Mermaid、大 Mermaid、renderer 失败、超时或返回空白时保持源码显示。
+> 流式场景沿用 source-first 策略：`streaming=true && final=false` 时只显示源码；`final=true` 后先尝试图片，失败再尝试 ANSI，都失败保持源码。
 >
-> `@simon_he/vue-tui/vue` 和 `@simon_he/vue-tui/agent` 导出的 renderer-agnostic primitive 不会默认拦截复杂 Mermaid；如果需要限制 custom renderer，只传入 `shouldRenderSource={isSimpleMermaidFlowchartSource}` 或自定义 guard。
->
-> 注意：Markdown 里的 `mermaid` code fence 当前只保留 `code_block.language` metadata，尚未自动走 `TMermaidText` 的 async render/cache 路径。
+> 需要固定呈现方式时用专用组件：`TMermaidText`（纯 ANSI）、`TMermaidImage`（图片优先）。
 
 ## TMermaidText
 
@@ -2034,7 +2036,9 @@ Mermaid 图片 primitive：把 mermaid 源码渲染成 PNG，通过 **Kitty / iT
 >
 > Import: `@simon_he/vue-tui/mermaid` / `@simon_he/vue-tui/agent/mermaid`（内置懒加载 rasterizer）。与 `beautifulMermaidRenderer` 一样，`TMermaidImage` 属于 mermaid bridge 入口，`@simon_he/vue-tui/vue` / `@simon_he/vue-tui/agent` 保持 renderer-agnostic，不包含 `beautiful-mermaid` 引用。
 >
-> 终端不支持图形协议、stdout 不是 TTY、在 tmux/screen/zellij 内未开 passthrough、或 rasterizer 缺失时，组件**自动降级为显示原始 mermaid 源码**，不会报错。
+> 终端不支持图形协议、stdout 不是 TTY、在 tmux/screen/zellij 内未开 passthrough、或 rasterizer 缺失时，组件**自动降级**：传了 `textRenderer` 则尝试 ANSI 文本图，否则显示原始 mermaid 源码，不会报错。
+>
+> **Kitty 图形协议下支持缩放 + 平移**：按住 `Ctrl`（macOS 浏览器里也可用 `Cmd`）+ 滚轮 → 以鼠标位置为中心放大/缩小，范围限制在容器区域内（越界裁剪，不撑破布局）；放大后可以直接**拖拽图片平移**。缩放通过 `a=p` placement resize 实现，不重新发送 PNG，性能开销极小；iTerm2 没有 in-place resize 序列，自动禁用。**不带修饰键的滚轮直接透传给外层滚动容器**（浏览历史消息时经过 mermaid 不会卡住滚动）。关闭用 `:zoom-on-wheel="false"`，改修饰键用 `:zoom-modifier`。
 >
 > **点击图片区域或 header 上的 copy 按钮，会把完整 mermaid raw content 复制到剪贴板**（触发 `copy` 事件）。
 
@@ -2081,7 +2085,10 @@ const renderer = async (code, options) => {
 - `h` `(number?)`：固定高度；不传时按图片高宽比自适应（rasterize 完成前按源码行数）
 - `content` / `code` `(string?)`：Mermaid source；同时传入时 `code` 优先
 - `final` / `streaming` `(boolean)`：`streaming=true && final=false` 时只显示源码，不触发 rasterize；结束后再出图
-- `renderer` `(TuiMermaidImageRasterizer?)`：自定义 mermaid → PNG rasterizer；不传时用内置懒加载（`beautiful-mermaid` + `@resvg/resvg-js`）
+- `renderer` `(TuiMermaidImageRasterizer?)`：自定义 mermaid → PNG rasterizer；不传时用内置懒加载（`beautiful-mermaid` + `@resvg/resvg-js`）。传入时该组件直接调用此 rasterizer（不走全局缓存），可用于需要独立管线的场景
+- `textRenderer` `(TMermaidRenderer?)`：ANSI 文本 renderer（与 `TMermaidText` 的 `renderer` 同签名）。传了以后，终端不支持图片或图片渲染失败时回退为 ANSI 文本图；不传则回退为原始源码。`TMermaid` 自动注入 `beautifulMermaidRenderer`
+- `shouldRenderSource` `(TMermaidRenderEligibility?)`：ANSI 回退的 eligibility guard；返回 `false` 时保持原始源码。`TMermaid` 默认注入 `isSimpleMermaidFlowchartSource`
+- `textOptions` `(TMermaidAsciiOptions?)`：传给 `textRenderer` 的 spacing/theme options；组件强制 `colorMode: "none"`
 - `cellWidthPx` / `cellHeightPx` / `scale` `(number?)`：PNG 像素 → cell 的换算参数（默认 8 / 16 / 2）
 - `bg` / `fg` `(string?)`：传给 `renderMermaidSVG` 的主题色；`fg` 未传时从 terminal 默认样式解析
 - `maxWidthCells` / `maxHeightCells` `(number?)`：限制图片最大占用格数，超范围等比缩放
@@ -2094,6 +2101,10 @@ const renderer = async (code, options) => {
 - `copiedDurationMs` `(number, 1200)`：`copied` 反馈持续时间
 - `maxRenderSourceChars` / `maxRenderSourceLines`：超大源码跳过 rasterize，直接显示源码
 - `ascii` `(boolean)`：使用 ASCII 边框字符
+- `zoomOnWheel` `(boolean, true)`：Kitty 图形协议下对图片做缩放 + 平移（以鼠标为中心，限制在容器区域内）；iTerm2 无 in-place resize，自动禁用
+- `zoomModifier` `("meta" | "ctrl" | "metaCtrl" | "none", "metaCtrl")`：缩放需要的修饰键；不带修饰键的滚轮透传给滚动容器。终端鼠标上报拿不到 metaKey，所以真实终端里用 `Ctrl`；浏览器里 `Cmd` / `Ctrl` 均可
+- `minZoom` / `maxZoom` `(number, 1 / 6)`：缩放范围（相对 fit 尺寸的倍率）
+- `zoomSensitivity` `(number, 0.002)`：缩放灵敏度（每像素 delta 的指数系数；滚轮一格约 ±22%）
 
 ### Events
 
@@ -2110,6 +2121,7 @@ const renderer = async (code, options) => {
 - `setMermaidImageRasterizer(rasterizer | null)`：注入自定义 rasterizer（传 `null` 恢复内置）
 - `clearMermaidImageCache()`：清空 PNG 与失败缓存
 - `subscribeMermaidImage(listener)`：图片完成后收到通知，用于重建布局
+- `resolveMermaidSvgForResvg(svg, bg, fg)`：把 beautiful-mermaid 的 CSS 变量 / `color-mix()` 内联成 hex（resvg 不支持这些 CSS，否则 PNG 全黑）
 
 ## TVirtualMarkdown
 

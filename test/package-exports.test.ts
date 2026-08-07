@@ -562,6 +562,7 @@ describe("package exports", () => {
       "markMermaidRenderErrorFatal",
       "normalizeMermaidImageOptions",
       "resolveMermaidImageColor",
+      "resolveMermaidSvgForResvg",
       "setMermaidImageRasterizer",
       "subscribeMermaidImage",
     ]);
