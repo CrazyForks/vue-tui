@@ -26,7 +26,10 @@ export {
 } from "./vue/mermaid/beautiful-mermaid.js";
 
 export { TMermaidImage } from "./vue/components/TMermaidImage.js";
-export type { TMermaidImageCopyPayload, TMermaidImageProps } from "./vue/components/TMermaidImage.js";
+export type {
+  TMermaidImageCopyPayload,
+  TMermaidImageProps,
+} from "./vue/components/TMermaidImage.js";
 export {
   clearMermaidImageCache,
   getCachedMermaidImage,

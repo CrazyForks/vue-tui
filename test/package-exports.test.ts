@@ -304,7 +304,8 @@ describe("package exports", () => {
       "linkifyTextSegments",
       "tuiDefaultTheme",
     ]);
-    expect(Object.keys(vue).sort()).toEqual([      "TAnchor",
+    expect(Object.keys(vue).sort()).toEqual([
+      "TAnchor",
       "TAutocompleteInput",
       "TBadge",
       "TBox",
@@ -385,7 +386,8 @@ describe("package exports", () => {
       "useTerminalNode",
       "useTerminalRuntime",
       "useVisibility",
-      "wrapByCells",]);
+      "wrapByCells",
+    ]);
     expect(Object.keys(markdown).sort()).toEqual([
       "TMarkdownText",
       "TVirtualMarkdown",
@@ -465,7 +467,8 @@ describe("package exports", () => {
       "useTLogSearchResultsPage",
       "useTLogVirtualSearchResults",
     ]);
-    expect(Object.keys(agent).sort()).toEqual([      "TAgentTerminalGraphic",
+    expect(Object.keys(agent).sort()).toEqual([
+      "TAgentTerminalGraphic",
       "TAgentTranscript",
       "TBox",
       "TCommandPalette",
@@ -540,8 +543,10 @@ describe("package exports", () => {
       "useTLogRetainedIndex",
       "useTLogSearchController",
       "useTLogSearchResultsPage",
-      "useTLogVirtualSearchResults",]);
-    expect(Object.keys(mermaid).sort()).toEqual([      "TBeautifulMermaid",
+      "useTLogVirtualSearchResults",
+    ]);
+    expect(Object.keys(mermaid).sort()).toEqual([
+      "TBeautifulMermaid",
       "TBeautifulMermaidText",
       "TMermaid",
       "TMermaidImage",
@@ -558,7 +563,8 @@ describe("package exports", () => {
       "normalizeMermaidImageOptions",
       "resolveMermaidImageColor",
       "setMermaidImageRasterizer",
-      "subscribeMermaidImage",]);
+      "subscribeMermaidImage",
+    ]);
     expect(Object.keys(agentMermaid).sort()).toEqual(Object.keys(mermaid).sort());
     expect(Object.keys(cli).sort()).toEqual([
       "HEADLESS_RENDERER_CAPABILITIES",

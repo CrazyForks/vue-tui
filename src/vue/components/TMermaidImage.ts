@@ -398,8 +398,7 @@ export const TMermaidImage = defineComponent({
     }
 
     function resolveImageOptions(): TuiMermaidImageOptions {
-      const resolvedFg =
-        props.fg ?? resolveMermaidImageColor(currentStyle.value.fg) ?? undefined;
+      const resolvedFg = props.fg ?? resolveMermaidImageColor(currentStyle.value.fg) ?? undefined;
       return normalizeMermaidImageOptions({
         cellWidthPx: props.cellWidthPx,
         cellHeightPx: props.cellHeightPx,
@@ -678,7 +677,8 @@ export const TMermaidImage = defineComponent({
     }
 
     function contentLine(rowIndex: number, width: number, pad: boolean): string {
-      const showImage = imageCells.value != null && displayFit.value != null && graphicsProtocol.value != null;
+      const showImage =
+        imageCells.value != null && displayFit.value != null && graphicsProtocol.value != null;
       const src = showImage ? spaces(width) : (sourceLines.value[rowIndex] ?? "");
       const clipped = sliceCells(src, width);
       return pad ? padCells(clipped, width) : clipped;

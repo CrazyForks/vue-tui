@@ -179,6 +179,7 @@ npx tsx scripts/check-math-graphics.ts
 
 ## Related Pages
 
+- [终端图片渲染（Kitty 图形协议）](/guide/terminal-image-rendering)（同一图形协议链路下的 Markdown 图片与 `TAgentTerminalGraphic`）
 - [Markdown Transcript](/guide/markdown-transcript)
 - [Components](/components)
 - [Terminal Compatibility](/terminal-compatibility)

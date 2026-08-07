@@ -250,6 +250,25 @@ const pageMeta: Record<
       "在终端里渲染 LaTeX/KaTeX 数学公式：块级公式输出为 Kitty 图形协议图片，行内公式混排进文字行，无图形能力时回退为 box 包裹或原始文本。",
     keywords: "markdown math, latex, katex, mathjax, kitty graphics, terminal math, 公式渲染",
   },
+  "guide/terminal-image-rendering.md": {
+    title: "终端图片渲染（Kitty 图形协议）",
+    description:
+      "在真实终端里渲染像素内容：Kitty / iTerm2 / Sixel 图形协议、Markdown 图片与 TAgentTerminalGraphic 两种用法、零依赖接入、tmux passthrough 与自动降级。",
+    keywords:
+      "terminal image, kitty graphics protocol, iterm2 inline image, sixel, terminal png, vue tui image, 终端图片",
+  },
+  "guide/terminal-video.md": {
+    title: "终端视频渲染（TVideo）",
+    description:
+      "在终端里播放视频：Kitty / iTerm2 图形协议下的 PNG 视频帧、无图形能力时的动态 ASCII 降级、FFmpeg 与 yt-dlp frame source、依赖安装与完整用法。",
+    keywords: "terminal video, TVideo, ffmpeg, yt-dlp, terminal ascii video, kitty video, 终端视频",
+  },
+  "guide/mermaid-rendering.md": {
+    title: "Mermaid 图渲染（TMermaidText）",
+    description:
+      "在终端里渲染 Mermaid flowchart / sequence / state diagram 的 ASCII 文本输出：beautiful-mermaid bridge 零配置用法、renderer-agnostic primitive 与自定义 renderer、流式 source 策略、依赖安装。",
+    keywords: "mermaid, mermaid terminal, beautiful-mermaid, TMermaidText, ascii diagram, 流程图",
+  },
 };
 
 function pageUrl(page: string): string {
@@ -435,6 +454,9 @@ export default defineConfig({
           { text: "Terminal Log Viewer", link: "/guide/terminal-log-viewer" },
           { text: "Markdown Transcript", link: "/guide/markdown-transcript" },
           { text: "Markdown Math", link: "/guide/markdown-math" },
+          { text: "Terminal Image Rendering", link: "/guide/terminal-image-rendering" },
+          { text: "Terminal Video", link: "/guide/terminal-video" },
+          { text: "Mermaid Rendering", link: "/guide/mermaid-rendering" },
         ],
       },
       { text: "Examples", link: "/examples" },
@@ -469,6 +491,9 @@ export default defineConfig({
           { text: "Terminal Log Viewer", link: "/guide/terminal-log-viewer" },
           { text: "Markdown Transcript", link: "/guide/markdown-transcript" },
           { text: "Markdown Math", link: "/guide/markdown-math" },
+          { text: "Terminal Image Rendering", link: "/guide/terminal-image-rendering" },
+          { text: "Terminal Video", link: "/guide/terminal-video" },
+          { text: "Mermaid Rendering", link: "/guide/mermaid-rendering" },
           { text: "Examples Index", link: "/examples" },
           { text: "Agent Console", link: "/agent-console" },
           { text: "TLogView Lab", link: "/tlog-view-lab" },

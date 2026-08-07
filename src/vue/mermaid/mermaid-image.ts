@@ -57,7 +57,10 @@ export function normalizeMermaidImageOptions(
   options?: TuiMermaidImageOptions,
 ): RequiredMermaidImageOptions {
   return {
-    cellWidthPx: Math.max(1, Math.floor(options?.cellWidthPx ?? DEFAULT_MERMAID_IMAGE_OPTIONS.cellWidthPx)),
+    cellWidthPx: Math.max(
+      1,
+      Math.floor(options?.cellWidthPx ?? DEFAULT_MERMAID_IMAGE_OPTIONS.cellWidthPx),
+    ),
     cellHeightPx: Math.max(
       1,
       Math.floor(options?.cellHeightPx ?? DEFAULT_MERMAID_IMAGE_OPTIONS.cellHeightPx),
@@ -124,10 +127,7 @@ function hashMermaidImageKey(value: string): string {
   return (hash >>> 0).toString(36);
 }
 
-function mermaidImageCacheKey(
-  code: string,
-  options: RequiredMermaidImageOptions,
-): string {
+function mermaidImageCacheKey(code: string, options: RequiredMermaidImageOptions): string {
   return hashMermaidImageKey(
     [
       code,
@@ -289,7 +289,10 @@ function svgRenderFunction(
   ];
   for (const candidate of candidates) {
     if (typeof candidate === "function") {
-      return candidate as (text: string, options: Record<string, unknown>) => string | Promise<string>;
+      return candidate as (
+        text: string,
+        options: Record<string, unknown>,
+      ) => string | Promise<string>;
     }
   }
   return null;
@@ -333,8 +336,7 @@ function loadBuiltinMermaidRasterizer(): Promise<TuiMermaidImageRasterizer | nul
 
           const naturalWidth = positiveInt(rendered?.width);
           const naturalHeight = positiveInt(rendered?.height);
-          const png =
-            typeof rendered?.asPng === "function" ? rendered.asPng() : undefined;
+          const png = typeof rendered?.asPng === "function" ? rendered.asPng() : undefined;
           if (!png || png.length < 8 || naturalWidth == null || naturalHeight == null) {
             return null;
           }
