@@ -268,6 +268,8 @@
     "profile:agent-console:abc": "tsx scripts/profile-agent-console-abc.ts",
     "profile:agent-console:abc:smoke": "AGENT_CONSOLE_PROFILE_SMOKE=1 tsx scripts/profile-agent-console-abc.ts",
     "example:tlog-view-lab": "pnpm run build && VT_SMOKE=1 tsx examples/tlog-view-lab.ts",
+    "example:chat-cli:smoke": "VT_SMOKE=1 tsx examples/chat-cli.ts",
+    "run:chat-cli:terminal": "pnpm run build && VT_INTERACTIVE=1 tsx examples/chat-cli.ts",
     "run:basic:terminal": "pnpm run build && pnpm -C examples/basic terminal",
     "run:agent-console:terminal": "pnpm run build && pnpm -C examples/agent-console terminal",
     "run:basic:multi-select:terminal": "pnpm run build && pnpm -C examples/basic build:terminal:multi-select && pnpm -C examples/basic terminal:multi-select",
@@ -368,6 +370,7 @@
   "devDependencies": {
     "@arethetypeswrong/core": "^0.18.3",
     "@playwright/test": "^1.61.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^18.19.130",
     "@vitest/coverage-v8": "^4.1.9",
     "beautiful-mermaid": "^1.1.3",
@@ -377,6 +380,7 @@
     "happy-dom": "^17.6.3",
     "katex": "^0.16.47",
     "lint-staged": "^13.3.0",
+    "mathjax-full": "^3.2.2",
     "oxfmt": "^0.47.0",
     "oxlint": "^1.70.0",
     "picocolors": "^1.1.1",
@@ -392,9 +396,11 @@
     "vue": "^3.5.38"
   },
   "peerDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "beautiful-mermaid": "^1.1.3",
     "bun-webgpu": "^0.1.7",
     "katex": "^0.16.47",
+    "mathjax-full": "^3.2.2",
     "vue": ">=3.3.0 <4"
   },
   "peerDependenciesMeta": {
@@ -405,6 +411,12 @@
       "optional": true
     },
     "katex": {
+      "optional": true
+    },
+    "mathjax-full": {
+      "optional": true
+    },
+    "@resvg/resvg-js": {
       "optional": true
     }
   },
