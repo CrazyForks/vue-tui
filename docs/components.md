@@ -18,10 +18,10 @@ description: Reference for Vue TUI components such as TerminalProvider, TBox, TI
 | Public       | `@simon_he/vue-tui`               | `TerminalProvider` `TBox` `TCommandPalette` `TDataTable` `TDialog` `TInput` `TLink` `TLinkifyText` `TList` `TSelect` `TTable` `TText` `TTree` `TView` form helpers 和 `TBadge`/`TTag`/`TDivider`/`TCode`                                                                                                      |
 | Advanced     | `@simon_he/vue-tui/vue`           | `TAnchor` `TDebugOverlay` `TFlex` `TFlexItem` `TFlow` `TForm` `TInputBox` `TJsonEditor` `TMermaid` `TMermaidText` `TMultilineModal` `TPathPicker` `TProgress` `TSpinner` `TSplitPane` `TTabs` `TToastViewport` `TRenderLayer` `TRenderPlane` `TRouterView` `TTransition` 和 overlay/navigation/status helpers |
 | Public       | `@simon_he/vue-tui/markdown`      | `TMarkdownText` `TVirtualMarkdown`                                                                                                                                                                                                                                                                            |
-| Public       | `@simon_he/vue-tui/mermaid`       | `TMermaid` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
+| Public       | `@simon_he/vue-tui/mermaid`       | `TMermaid` `TMermaidImage` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
 | Experimental | `@simon_he/vue-tui/experimental`  | `TCandlestickChart` `TContributionGraph` `TLineChart` `TPieChart` `TVideo` `TVirtualList` `TTranscriptView` `TLogView` `TLogSearchBar` `TLogSearchResults` `TLogSearchPager` `TLogLinksPanel` `TLogVirtualSearchResults` `TLogVirtualLinksPanel` `TLogScrollbar` `TLogMinimap`                                |
 | Experimental | `@simon_he/vue-tui/agent`         | `TAgentTerminalGraphic` `TAgentTranscript` `TMermaid` `TMermaidText` `TThinkingView` `TUserMessageView` `TToolCallView` `TToolLogView` `TVirtualMarkdown` `TVirtualList` `TRenderPlane` 和 agent/console 常用基础组件                                                                                         |
-| Experimental | `@simon_he/vue-tui/agent/mermaid` | `TMermaid` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
+| Experimental | `@simon_he/vue-tui/agent/mermaid` | `TMermaid` `TMermaidImage` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
 
 下面的组件速读按用途分组，不代表 root entrypoint 导出。每个组件的 primary import 以生成的 [组件 API](/generated/components-api) 为准。
 
@@ -31,7 +31,7 @@ description: Reference for Vue TUI components such as TerminalProvider, TBox, TI
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------- |
 | Root          | `TerminalProvider`                                                                                                                                                                                 | 创建 terminal / renderer / event manager 上下文   | 通用，适合所有宿主                                 |
 | Layout        | `TBox` `TView` `TAnchor` `TFlex` `TFlexItem` `TFlow` `TRenderLayer` `TRenderPlane`                                                                                                                 | 布局、裁剪、层级、分层组合                        | 通用，和 CLI 业务无关                              |
-| Text / Action | `TText` `TLink` `TLinkifyText` `TMermaid` `TMermaidText` `TBadge` `TTag` `TDivider` `TCode` `TKeyHint` `TTransition`                                                                               | 文本渲染、链接操作、结构图、徽标、分隔符          | 通用                                               |
+| Text / Action | `TText` `TLink` `TLinkifyText` `TMermaid` `TMermaidImage` `TMermaidText` `TBadge` `TTag` `TDivider` `TCode` `TKeyHint` `TTransition`                                                                               | 文本渲染、链接操作、结构图、徽标、分隔符          | 通用                                               |
 | Input / Form  | `TInput` `TInputBox` `TAutocompleteInput` `TCheckbox` `TFormField` `TPasswordInput` `TRadioGroup` `TSlider` `TSwitch` `TJsonEditor`                                                                | prompt、表单、结构化文本编辑                      | 通用，但推荐把补全/校验放到插件层                  |
 | Data / Tree   | `TTable` `TDataTable` `TTree`                                                                                                                                                                      | 多列数据、排序过滤、层级选择                      | 通用                                               |
 | Charts        | `TContributionGraph` `TLineChart` `TCandlestickChart` `TPieChart`                                                                                                                                  | 贡献热力图、趋势、K 线、占比图                    | 通用，适合 dashboard / agent token usage           |
@@ -265,9 +265,9 @@ Public helper `linkifyTextSegments("")` returns an empty segment array; non-empt
 
 单行 code 文本，用于命令、路径或短 token。它只做 cell 截断和样式渲染，不执行命令、不复制内容。
 
-## TMermaid / TMermaidText
+## TMermaid / TMermaidImage / TMermaidText
 
-Mermaid 组件详见下方 [TMermaidText](#tmermaidtext)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。
+Mermaid 组件详见下方 [TMermaidText](#tmermaidtext) 与 [TMermaidImage](#tmermaidimage)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。图片模式 `TMermaidImage` 走 Kitty/iTerm2 图形协议，需要额外安装 `@resvg/resvg-js`。
 
 ## TAgentTerminalGraphic
 
@@ -977,10 +977,10 @@ Markdown renderer for static or streaming text content。它走独立的 `parser
 | Public       | `@simon_he/vue-tui`               | `TerminalProvider` `TBox` `TCommandPalette` `TDataTable` `TDialog` `TInput` `TLink` `TLinkifyText` `TList` `TSelect` `TTable` `TText` `TTree` `TView` form helpers 和 `TBadge`/`TTag`/`TDivider`/`TCode`                                                                                                      |
 | Advanced     | `@simon_he/vue-tui/vue`           | `TAnchor` `TDebugOverlay` `TFlex` `TFlexItem` `TFlow` `TForm` `TInputBox` `TJsonEditor` `TMermaid` `TMermaidText` `TMultilineModal` `TPathPicker` `TProgress` `TSpinner` `TSplitPane` `TTabs` `TToastViewport` `TRenderLayer` `TRenderPlane` `TRouterView` `TTransition` 和 overlay/navigation/status helpers |
 | Public       | `@simon_he/vue-tui/markdown`      | `TMarkdownText` `TVirtualMarkdown`                                                                                                                                                                                                                                                                            |
-| Public       | `@simon_he/vue-tui/mermaid`       | `TMermaid` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
+| Public       | `@simon_he/vue-tui/mermaid`       | `TMermaid` `TMermaidImage` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
 | Experimental | `@simon_he/vue-tui/experimental`  | `TCandlestickChart` `TContributionGraph` `TLineChart` `TPieChart` `TVideo` `TVirtualList` `TTranscriptView` `TLogView` `TLogSearchBar` `TLogSearchResults` `TLogSearchPager` `TLogLinksPanel` `TLogVirtualSearchResults` `TLogVirtualLinksPanel` `TLogScrollbar` `TLogMinimap`                                |
 | Experimental | `@simon_he/vue-tui/agent`         | `TAgentTerminalGraphic` `TAgentTranscript` `TMermaid` `TMermaidText` `TThinkingView` `TUserMessageView` `TToolCallView` `TToolLogView` `TVirtualMarkdown` `TVirtualList` `TRenderPlane` 和 agent/console 常用基础组件                                                                                         |
-| Experimental | `@simon_he/vue-tui/agent/mermaid` | `TMermaid` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
+| Experimental | `@simon_he/vue-tui/agent/mermaid` | `TMermaid` `TMermaidImage` `TMermaidText` `TBeautifulMermaidText` `beautifulMermaidRenderer` `createBeautifulMermaidRenderer`                                                                                                                                                                                                 |
 
 下面的组件速读按用途分组，不代表 root entrypoint 导出。每个组件的 primary import 以生成的 [组件 API](/generated/components-api) 为准。
 
@@ -990,7 +990,7 @@ Markdown renderer for static or streaming text content。它走独立的 `parser
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------- |
 | Root          | `TerminalProvider`                                                                                                                                                                                 | 创建 terminal / renderer / event manager 上下文   | 通用，适合所有宿主                                 |
 | Layout        | `TBox` `TView` `TAnchor` `TFlex` `TFlexItem` `TFlow` `TRenderLayer` `TRenderPlane`                                                                                                                 | 布局、裁剪、层级、分层组合                        | 通用，和 CLI 业务无关                              |
-| Text / Action | `TText` `TLink` `TLinkifyText` `TMermaid` `TMermaidText` `TBadge` `TTag` `TDivider` `TCode` `TKeyHint` `TTransition`                                                                               | 文本渲染、链接操作、结构图、徽标、分隔符          | 通用                                               |
+| Text / Action | `TText` `TLink` `TLinkifyText` `TMermaid` `TMermaidImage` `TMermaidText` `TBadge` `TTag` `TDivider` `TCode` `TKeyHint` `TTransition`                                                                               | 文本渲染、链接操作、结构图、徽标、分隔符          | 通用                                               |
 | Input / Form  | `TInput` `TInputBox` `TAutocompleteInput` `TCheckbox` `TFormField` `TPasswordInput` `TRadioGroup` `TSlider` `TSwitch` `TJsonEditor`                                                                | prompt、表单、结构化文本编辑                      | 通用，但推荐把补全/校验放到插件层                  |
 | Data / Tree   | `TTable` `TDataTable` `TTree`                                                                                                                                                                      | 多列数据、排序过滤、层级选择                      | 通用                                               |
 | Charts        | `TContributionGraph` `TLineChart` `TCandlestickChart` `TPieChart`                                                                                                                                  | 贡献热力图、趋势、K 线、占比图                    | 通用，适合 dashboard / agent token usage           |
@@ -1224,9 +1224,9 @@ Public helper `linkifyTextSegments("")` returns an empty segment array; non-empt
 
 单行 code 文本，用于命令、路径或短 token。它只做 cell 截断和样式渲染，不执行命令、不复制内容。
 
-## TMermaid / TMermaidText
+## TMermaid / TMermaidImage / TMermaidText
 
-Mermaid 组件详见下方 [TMermaidText](#tmermaidtext)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。
+Mermaid 组件详见下方 [TMermaidText](#tmermaidtext) 与 [TMermaidImage](#tmermaidimage)。这里仅作为 Text / Action 分类索引：基础组件从 `@simon_he/vue-tui/vue` 或 `@simon_he/vue-tui/agent` 导入并显式传 `renderer`；内置 `beautiful-mermaid` bridge 从 `@simon_he/vue-tui/mermaid` 或 `@simon_he/vue-tui/agent/mermaid` 导入，使用前需要安装 `beautiful-mermaid`。图片模式 `TMermaidImage` 走 Kitty/iTerm2 图形协议，需要额外安装 `@resvg/resvg-js`。
 
 ## TAgentTerminalGraphic
 
@@ -2025,6 +2025,91 @@ AI 输出 Mermaid fence 时经常会先产生不完整源码。`streaming=true &
 - 如果当前源码通过 size guard 和 eligibility guard，且 renderer 成功，则显示渲染结果。
 - 如果当前源码是复杂 Mermaid、超出 size guard、显式 eligibility 返回 `false`，或 renderer 失败/超时/返回空白，则保持源码显示。
 - 缺少 renderer 时也保持源码显示，不显示 loading/error/incomplete 文案。
+
+## TMermaidImage
+
+Mermaid 图片 primitive：把 mermaid 源码渲染成 PNG，通过 **Kitty / iTerm2 图形协议**直接画进真实终端。渲染管线镜像 KaTeX 数学公式图片的实现方式：`beautiful-mermaid`（`renderMermaidSVGAsync`，零 DOM 依赖）产出 SVG → `@resvg/resvg-js` 转 PNG → 组件用 `getTerminalGraphicsOutput().queue()` 在帧末尾写入 raw escape sequence。
+
+> 依赖均为 optional peer，按需安装：`pnpm add beautiful-mermaid @resvg/resvg-js`
+>
+> Import: `@simon_he/vue-tui/mermaid` / `@simon_he/vue-tui/agent/mermaid`（内置懒加载 rasterizer）。与 `beautifulMermaidRenderer` 一样，`TMermaidImage` 属于 mermaid bridge 入口，`@simon_he/vue-tui/vue` / `@simon_he/vue-tui/agent` 保持 renderer-agnostic，不包含 `beautiful-mermaid` 引用。
+>
+> 终端不支持图形协议、stdout 不是 TTY、在 tmux/screen/zellij 内未开 passthrough、或 rasterizer 缺失时，组件**自动降级为显示原始 mermaid 源码**，不会报错。
+>
+> **点击图片区域或 header 上的 copy 按钮，会把完整 mermaid raw content 复制到剪贴板**（触发 `copy` 事件）。
+
+### Example
+
+```vue
+<script setup lang="ts">
+import { TMermaidImage } from "@simon_he/vue-tui/agent/mermaid";
+
+const diagram = `graph TD
+  Prompt --> Plan
+  Plan --> ToolCall
+  ToolCall --> Answer`;
+</script>
+
+<template>
+  <!-- h 省略时按图片宽高比自适应；不传时在 w 内等比缩放 -->
+  <TMermaidImage :x="0" :y="0" :w="72" :content="diagram" />
+</template>
+```
+
+自定义 rasterizer（例如走自己的 mermaid 渲染服务）：
+
+```vue
+<script setup lang="ts">
+import { TMermaidImage } from "@simon_he/vue-tui/agent/mermaid";
+
+const renderer = async (code, options) => {
+  // 返回 { base64, widthCells, heightCells, naturalWidth?, naturalHeight? }
+  // 或 null（保持源码显示）
+  const png = await myMermaidService(code);
+  return { base64: png.base64, widthCells: 40, heightCells: 12 };
+};
+</script>
+
+<template>
+  <TMermaidImage :x="0" :y="0" :w="72" :content="diagram" :renderer="renderer" />
+</template>
+```
+
+### Props
+
+- `x`/`y`/`w` `(number, required)`：渲染区域左上角与宽度
+- `h` `(number?)`：固定高度；不传时按图片高宽比自适应（rasterize 完成前按源码行数）
+- `content` / `code` `(string?)`：Mermaid source；同时传入时 `code` 优先
+- `final` / `streaming` `(boolean)`：`streaming=true && final=false` 时只显示源码，不触发 rasterize；结束后再出图
+- `renderer` `(TuiMermaidImageRasterizer?)`：自定义 mermaid → PNG rasterizer；不传时用内置懒加载（`beautiful-mermaid` + `@resvg/resvg-js`）
+- `cellWidthPx` / `cellHeightPx` / `scale` `(number?)`：PNG 像素 → cell 的换算参数（默认 8 / 16 / 2）
+- `bg` / `fg` `(string?)`：传给 `renderMermaidSVG` 的主题色；`fg` 未传时从 terminal 默认样式解析
+- `maxWidthCells` / `maxHeightCells` `(number?)`：限制图片最大占用格数，超范围等比缩放
+- `padding` `(number?)`：SVG 画布内边距（默认 40px）
+- `box` `(boolean, true)`：是否绘制外框（含 title 与 copy 按钮）
+- `title` `(string, "mermaid")`：header 标题
+- `copyButton` `(boolean, true)`：是否显示 copy 按钮
+- `copyOnClick` `(boolean, true)`：点击图片区域是否复制完整源码
+- `copyText` / `copiedText` `(string)`：copy 按钮文案与复制成功文案
+- `copiedDurationMs` `(number, 1200)`：`copied` 反馈持续时间
+- `maxRenderSourceChars` / `maxRenderSourceLines`：超大源码跳过 rasterize，直接显示源码
+- `ascii` `(boolean)`：使用 ASCII 边框字符
+
+### Events
+
+- `copy` `(payload: { text, ok, error? })`：复制完整 mermaid raw content 后触发；`text` 即完整源码
+
+### 模块级 rasterizer API
+
+从 `@simon_he/vue-tui/mermaid` / `@simon_he/vue-tui/agent/mermaid` 导出，与 math-image 对齐：
+
+- `getMermaidImage(code, options?)`：rasterize 并按 `(code, cell metrics, colors)` 缓存；in-flight 去重；完成时通知订阅者
+- `getCachedMermaidImage(code, options?)`：同步缓存查询（未命中返回 `null`）
+- `loadMermaidImageRenderer()`：确保内置 rasterizer 已加载（或判定不可用），返回 `boolean`
+- `isMermaidImageRendererReady()`：rasterizer 是否可用（组件据此门控，避免反复重试）
+- `setMermaidImageRasterizer(rasterizer | null)`：注入自定义 rasterizer（传 `null` 恢复内置）
+- `clearMermaidImageCache()`：清空 PNG 与失败缓存
+- `subscribeMermaidImage(listener)`：图片完成后收到通知，用于重建布局
 
 ## TVirtualMarkdown
 

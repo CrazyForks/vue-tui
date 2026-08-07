@@ -306,23 +306,38 @@
         "TBeautifulMermaid",
         "TBeautifulMermaidText",
         "TMermaid",
+        "TMermaidImage",
         "TMermaidText",
         "beautifulMermaidRenderer",
+        "clearMermaidImageCache",
         "createBeautifulMermaidRenderer",
+        "getCachedMermaidImage",
+        "getMermaidImage",
+        "isMermaidImageRendererReady",
         "isSimpleMermaidFlowchartSource",
-        "markMermaidRenderErrorFatal"
+        "loadMermaidImageRenderer",
+        "markMermaidRenderErrorFatal",
+        "normalizeMermaidImageOptions",
+        "resolveMermaidImageColor",
+        "setMermaidImageRasterizer",
+        "subscribeMermaidImage"
       ],
       "typeExports": [
         "TMermaidAsciiOptions",
         "TMermaidAsciiTheme",
         "TMermaidCopyPayload",
+        "TMermaidImageCopyPayload",
+        "TMermaidImageProps",
         "TMermaidRenderEligibility",
         "TMermaidRenderEligibilityContext",
         "TMermaidRenderer",
         "TMermaidResolvedAsciiOptions",
         "TMermaidTextProps",
         "TMermaidTransientErrorClassifier",
-        "TMermaidTransientErrorContext"
+        "TMermaidTransientErrorContext",
+        "TuiMermaidImageCells",
+        "TuiMermaidImageOptions",
+        "TuiMermaidImageRasterizer"
       ]
     },
     "@simon_he/vue-tui/cli": {
@@ -725,23 +740,38 @@
         "TBeautifulMermaid",
         "TBeautifulMermaidText",
         "TMermaid",
+        "TMermaidImage",
         "TMermaidText",
         "beautifulMermaidRenderer",
+        "clearMermaidImageCache",
         "createBeautifulMermaidRenderer",
+        "getCachedMermaidImage",
+        "getMermaidImage",
+        "isMermaidImageRendererReady",
         "isSimpleMermaidFlowchartSource",
-        "markMermaidRenderErrorFatal"
+        "loadMermaidImageRenderer",
+        "markMermaidRenderErrorFatal",
+        "normalizeMermaidImageOptions",
+        "resolveMermaidImageColor",
+        "setMermaidImageRasterizer",
+        "subscribeMermaidImage"
       ],
       "typeExports": [
         "TMermaidAsciiOptions",
         "TMermaidAsciiTheme",
         "TMermaidCopyPayload",
+        "TMermaidImageCopyPayload",
+        "TMermaidImageProps",
         "TMermaidRenderEligibility",
         "TMermaidRenderEligibilityContext",
         "TMermaidRenderer",
         "TMermaidResolvedAsciiOptions",
         "TMermaidTextProps",
         "TMermaidTransientErrorClassifier",
-        "TMermaidTransientErrorContext"
+        "TMermaidTransientErrorContext",
+        "TuiMermaidImageCells",
+        "TuiMermaidImageOptions",
+        "TuiMermaidImageRasterizer"
       ]
     },
     "@simon_he/vue-tui/observability": {

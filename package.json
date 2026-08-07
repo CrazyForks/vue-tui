@@ -286,6 +286,7 @@
     "test:3d:bun": "bun scripts/smoke-bun-3d.ts",
     "run:image-showcase:terminal": "tsx examples/image-showcase.ts",
     "run:katex-showcase:terminal": "tsx examples/katex-showcase.ts",
+    "run:mermaid-image-showcase:terminal": "tsx examples/mermaid-image-showcase.ts",
     "trace:terminal-resize": "node scripts/trace-terminal-resize.mjs",
     "test:component-terminal:smoke": "VT_SMOKE=1 tsx scripts/run-component-terminal.ts --all",
     "e2e:component-terminal-charts": "tsx scripts/run-component-terminal.ts --capture-charts",

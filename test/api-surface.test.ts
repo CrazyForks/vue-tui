@@ -205,11 +205,21 @@ describe("public API surface", () => {
         "TBeautifulMermaid",
         "TBeautifulMermaidText",
         "TMermaid",
+        "TMermaidImage",
         "TMermaidText",
         "beautifulMermaidRenderer",
+        "clearMermaidImageCache",
         "createBeautifulMermaidRenderer",
+        "getCachedMermaidImage",
+        "getMermaidImage",
+        "isMermaidImageRendererReady",
         "isSimpleMermaidFlowchartSource",
+        "loadMermaidImageRenderer",
         "markMermaidRenderErrorFatal",
+        "normalizeMermaidImageOptions",
+        "resolveMermaidImageColor",
+        "setMermaidImageRasterizer",
+        "subscribeMermaidImage",
       ]
     `);
   });
@@ -220,11 +230,21 @@ describe("public API surface", () => {
         "TBeautifulMermaid",
         "TBeautifulMermaidText",
         "TMermaid",
+        "TMermaidImage",
         "TMermaidText",
         "beautifulMermaidRenderer",
+        "clearMermaidImageCache",
         "createBeautifulMermaidRenderer",
+        "getCachedMermaidImage",
+        "getMermaidImage",
+        "isMermaidImageRendererReady",
         "isSimpleMermaidFlowchartSource",
+        "loadMermaidImageRenderer",
         "markMermaidRenderErrorFatal",
+        "normalizeMermaidImageOptions",
+        "resolveMermaidImageColor",
+        "setMermaidImageRasterizer",
+        "subscribeMermaidImage",
       ]
     `);
   });

@@ -113,6 +113,7 @@ type RendererCapabilities = Readonly<{
 | `TVideo`                                        | kitty 或 iterm2             | `gray8` ASCII art（block 字符低保真输出，功能完整） |
 | `T3DViewport`                                   | kitty 或 iterm2             | 同 `TVideo`，通过 `gray8` ASCII art 降级            |
 | `TAgentTerminalGraphic`（mermaid、KaTeX、图片） | kitty / iterm2 / sixel 任一 | 渲染 `fallback` 文本；不显示图形内容                |
+| `TMermaidImage`                                 | kitty 或 iterm2             | 显示原始 mermaid 源码                                |
 | `TMarkdownText` / `TVirtualMarkdown` 内嵌图形   | 同上                        | 内嵌图形段落退化为 `fallbackText`；文本段正常渲染   |
 | 所有其他组件                                    | 无                          | 纯文本渲染，无依赖                                  |
 

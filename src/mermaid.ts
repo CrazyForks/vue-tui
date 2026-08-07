@@ -24,3 +24,22 @@ export {
   TMermaid,
   TMermaidText,
 } from "./vue/mermaid/beautiful-mermaid.js";
+
+export { TMermaidImage } from "./vue/components/TMermaidImage.js";
+export type { TMermaidImageCopyPayload, TMermaidImageProps } from "./vue/components/TMermaidImage.js";
+export {
+  clearMermaidImageCache,
+  getCachedMermaidImage,
+  getMermaidImage,
+  isMermaidImageRendererReady,
+  loadMermaidImageRenderer,
+  normalizeMermaidImageOptions,
+  resolveMermaidImageColor,
+  setMermaidImageRasterizer,
+  subscribeMermaidImage,
+} from "./vue/mermaid/mermaid-image.js";
+export type {
+  TuiMermaidImageCells,
+  TuiMermaidImageOptions,
+  TuiMermaidImageRasterizer,
+} from "./vue/mermaid/mermaid-image.js";
