@@ -247,6 +247,58 @@ describe("resolveMermaidSvgForResvg", () => {
     // 25% white over black = #404040
     expect(resolved).toContain('fill="#404040"');
   });
+
+  it("strips nested style sequences until no <style remains", () => {
+    // A single replace() pass would turn "<sty<style>x</style>le>" into
+    // "<style>", which still injects a style element. Sanitization must loop
+    // until stable so no style element survives.
+    const resolved = resolveMermaidSvgForResvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><sty<style>x</style>le><rect width="10" height="10" /></svg>',
+      "#000000",
+      "#ffffff",
+    );
+
+    expect(resolved).not.toMatch(/<style/i);
+    expect(resolved).toContain("<rect");
+  });
+
+  it("drops a lone <style> opener that has no closing tag", () => {
+    const resolved = resolveMermaidSvgForResvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><style><rect width="10" height="10" /></svg>',
+      "#000000",
+      "#ffffff",
+    );
+
+    expect(resolved).not.toMatch(/<style/i);
+    expect(resolved).toContain("<rect");
+  });
+
+  it("does not corrupt surrounding markup on a malformed unterminated opener", () => {
+    const resolved = resolveMermaidSvgForResvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><style<rect width="10" height="10" /></svg>',
+      "#000000",
+      "#ffffff",
+    );
+
+    expect(resolved).toContain("<rect");
+    expect(resolved).toContain("</svg>");
+  });
+
+  it("does not ReDoS on adversarial style or declaration input", () => {
+    // Long runs of "<style" / "--" / spaces with no terminators used to make
+    // the previous regexes backtrack quadratically.
+    const styleFlood = `<style>${"<style".repeat(30_000)}</style>`;
+    const dashFlood = `<style>svg{${"--".repeat(30_000)}}</style>`;
+    const spaceFlood = `<style>svg{--x: ${" ".repeat(30_000)}}</style>`;
+    const resolved = resolveMermaidSvgForResvg(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">${styleFlood}${dashFlood}${spaceFlood}<rect width="10" height="10" /></svg>`,
+      "#000000",
+      "#ffffff",
+    );
+
+    expect(resolved).not.toMatch(/<style/i);
+    expect(resolved).toContain("<rect");
+  });
 });
 
 describe("mermaid-image rasterizer", () => {

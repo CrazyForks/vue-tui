@@ -7748,7 +7748,9 @@ describe("TAgentTerminalGraphic", () => {
       }),
     ).toMatchObject({
       preferredProtocol: "kitty",
-      candidates: ["kitty", "iterm2", "sixel"],
+      // #131: WezTerm is detected as kitty-protocol capable (not iterm2), so
+      // with sixel force the candidates are kitty + sixel only.
+      candidates: ["kitty", "sixel"],
     });
   });
 

@@ -351,20 +351,118 @@ function extractSvgRootStyleColors(
   return { bg, fg };
 }
 
+function isSvgVarNameChar(ch: string): boolean {
+  const code = ch.charCodeAt(0);
+  return (
+    (code >= 48 && code <= 57) || // 0-9
+    (code >= 65 && code <= 90) || // A-Z
+    (code >= 97 && code <= 122) || // a-z
+    ch === "_" ||
+    ch === "-"
+  );
+}
+
+function isSvgWhitespace(ch: string): boolean {
+  return ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "\f";
+}
+
+/**
+ * Find the next `<style ...>...</style>` block starting at or after `from`.
+ * Uses `indexOf` scans only (no regex backtracking), so untrusted SVG input
+ * cannot trigger ReDoS. Returns the outer range plus the inner content range,
+ * or null when no complete style block exists.
+ */
+function findSvgStyleBlock(
+  svg: string,
+  from = 0,
+): { start: number; contentStart: number; contentEnd: number; end: number } | null {
+  const lower = svg.toLowerCase();
+  const open = lower.indexOf("<style", from);
+  if (open < 0) return null;
+  const tagEnd = svg.indexOf(">", open);
+  if (tagEnd < 0) return null;
+  const close = lower.indexOf("</style", tagEnd + 1);
+  if (close < 0) return null;
+  const closeEnd = svg.indexOf(">", close);
+  if (closeEnd < 0) return null;
+  return { start: open, contentStart: tagEnd + 1, contentEnd: close, end: closeEnd + 1 };
+}
+
 function extractSvgCssVariables(svg: string): Map<string, string> {
   const map = new Map<string, string>();
-  const styleMatch = /<style[^>]*>([\s\S]*?)<\/style>/i.exec(svg);
-  if (!styleMatch?.[1]) return map;
-  const declaration = /(--[A-Za-z0-9_-]+)\s*:\s*([^;{}]+);/g;
-  let match: RegExpExecArray | null;
-  while ((match = declaration.exec(styleMatch[1])) !== null) {
-    map.set(match[1], match[2].trim());
+  const block = findSvgStyleBlock(svg);
+  if (!block) return map;
+  const content = svg.slice(block.contentStart, block.contentEnd);
+  let cursor = 0;
+  while (cursor < content.length) {
+    const semi = content.indexOf(";", cursor);
+    if (semi < 0) break;
+    const statement = content.slice(cursor, semi);
+    let pos = 0;
+    while (pos < statement.length) {
+      const open = statement.indexOf("--", pos);
+      if (open < 0) break;
+      let nameEnd = open + 2;
+      while (nameEnd < statement.length && isSvgVarNameChar(statement[nameEnd])) nameEnd++;
+      if (nameEnd === open + 2) {
+        pos = open + 2;
+        continue;
+      }
+      let colonAt = nameEnd;
+      while (colonAt < statement.length && isSvgWhitespace(statement[colonAt])) colonAt++;
+      if (statement[colonAt] !== ":") {
+        pos = open + 2;
+        continue;
+      }
+      const value = statement.slice(colonAt + 1).trim();
+      if (value !== "" && !value.includes("{") && !value.includes("}")) {
+        map.set(statement.slice(open, nameEnd), value);
+      }
+      break;
+    }
+    cursor = semi + 1;
   }
   return map;
 }
 
+/**
+ * True when the `<style` at `open` looks like a real element opener: the tag
+ * name must be followed by whitespace, "/" or ">".
+ */
+function isSvgStyleOpener(svg: string, open: number): boolean {
+  const after = svg[open + 6];
+  return after === ">" || after === "/" || isSvgWhitespace(after);
+}
+
 function stripSvgStyleBlocks(svg: string): string {
-  return svg.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+  let result = svg;
+  let block = findSvgStyleBlock(result);
+  while (block) {
+    result = result.slice(0, block.start) + result.slice(block.end);
+    // Removing a block can expose another "<style" sequence (for example
+    // "<sty<style>x</style>le>"), so keep scanning from the removed range.
+    block = findSvgStyleBlock(result, block.start);
+  }
+  // A lone "<style ...>" opener with no closing tag cannot be balanced by the
+  // loop above; drop it so no style element survives sanitization. Only clean
+  // openers (a ">" before any other "<") are removed — malformed leftovers are
+  // left untouched so the surrounding SVG cannot be corrupted.
+  let open = result.toLowerCase().indexOf("<style");
+  while (open >= 0) {
+    if (!isSvgStyleOpener(result, open)) {
+      open = result.toLowerCase().indexOf("<style", open + 6);
+      continue;
+    }
+    const nextLt = result.indexOf("<", open + 6);
+    const tagEnd = result.indexOf(">", open);
+    if (tagEnd < 0 || (nextLt >= 0 && nextLt < tagEnd)) {
+      open = result.toLowerCase().indexOf("<style", open + 6);
+      continue;
+    }
+    result = result.slice(0, open) + result.slice(tagEnd + 1);
+    open = result.toLowerCase().indexOf("<style", open);
+  }
+  return result;
 }
 
 function findMatchingSvgParen(input: string, openIndex: number): number {
