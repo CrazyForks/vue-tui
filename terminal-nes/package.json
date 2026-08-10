@@ -1,6 +1,6 @@
 {
   "name": "terminal-nes",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "🎮 Real NES emulator in your terminal — jsnes core, pixel-perfect 256×224 frames via kitty/iTerm2 graphics, keyboard → NES controller, share-to-X with screenshot.",
   "keywords": [
     "nes",
