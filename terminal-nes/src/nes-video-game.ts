@@ -16,9 +16,8 @@
  *   Q / Ctrl+C     → quit
  */
 import { defineComponent, h, onBeforeUnmount, onMounted, ref } from "vue";
-import { TVideo, type TVideoFrameSourceContext } from "@simon_he/vue-tui/experimental";
-import { TBox, TText } from "@simon_he/vue-tui";
-import { useTerminal } from "@simon_he/vue-tui/vue";
+import { TVideo, type TVideoFrameSourceContext } from "../../src/experimental.js";
+import { TBox, TText, useTerminal } from "../../src/vue.js";
 import Controller, { type ButtonKey } from "./vendor/jsnes/src/controller.js";
 import Nes from "./vendor/jsnes/src/nes.js";
 import { encodeRgbaPng, resizeNearest } from "./png.js";
@@ -63,30 +62,32 @@ export function getNesVideoLayout(cols: number, rows: number) {
   const helpRow = 1;
   const availableH = Math.max(4, contentH - topGap - helpRow);
   const availableW = contentW;
-  // Preferred rendering: integer multiples of the visible NES picture
-  // (256×224 after overscan crop). Nearest-neighbour at integer scales is
-  // pixel-perfect — no blur, no moiré. Pick the largest whole scale that fits
-  // the video box (each cell ≈6px wide ×12px tall).
-  let scale = Math.max(
-    1,
-    Math.min(
-      Math.floor((availableW * CELL_W_PX) / NES_VISIBLE_W),
-      Math.floor((availableH * CELL_H_PX) / NES_VISIBLE_H),
-    ),
-  );
-  let frameW = NES_VISIBLE_W * scale;
-  let frameH = NES_VISIBLE_H * scale;
-  // If even 1× doesn't fit (very small terminals), fall back to the exact-fit
-  // fractional path that fills the box — still correct, just slightly softer.
-  if (frameH > availableH * CELL_H_PX || frameW > availableW * CELL_W_PX) {
-    scale = 1;
-    frameH = Math.min(availableH * CELL_H_PX, NES_VISIBLE_H);
-    frameW = Math.round(frameH * (NES_VISIBLE_W / NES_VISIBLE_H));
-    if (frameW > availableW * CELL_W_PX) {
-      frameW = availableW * CELL_W_PX;
-      frameH = Math.round(frameW / (NES_VISIBLE_W / NES_VISIBLE_H));
+  // Pixel budget of the video box.
+  const maxPxW = availableW * CELL_W_PX;
+  const maxPxH = availableH * CELL_H_PX;
+  const picAspect = NES_VISIBLE_W / NES_VISIBLE_H;
+
+  // Fill the whole video box while keeping the picture aspect. Nearest
+  // neighbours stay crisp even at fractional scales, so we optimise for size,
+  // and snap to an integer scale only when it is essentially lossless.
+  const fit = Math.min(maxPxW / NES_VISIBLE_W, maxPxH / NES_VISIBLE_H);
+  const integerFit = Math.max(1, Math.round(fit));
+  const nearInteger = fit >= 1 && Math.abs(integerFit / fit - 1) < 0.05;
+
+  let frameW: number;
+  let frameH: number;
+  if (nearInteger && integerFit * NES_VISIBLE_W <= maxPxW && integerFit * NES_VISIBLE_H <= maxPxH) {
+    frameW = integerFit * NES_VISIBLE_W;
+    frameH = integerFit * NES_VISIBLE_H;
+  } else {
+    frameH = Math.floor(fit * NES_VISIBLE_H);
+    frameW = Math.floor(frameH * picAspect);
+    if (frameW > maxPxW) {
+      frameW = maxPxW;
+      frameH = Math.floor(frameW / picAspect);
     }
   }
+  const scale = frameW / NES_VISIBLE_W;
   // Placement box in cells: the same frame displayed cell-by-cell.
   const videoW = Math.max(8, Math.round(frameW / CELL_W_PX));
   const videoH = Math.max(4, Math.round(frameH / CELL_H_PX));

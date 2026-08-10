@@ -256,12 +256,24 @@ export async function runNes(): Promise<void> {
   /**
    * Terminal stdin has no keyup events: a held key is signalled by repeated
    * keydown events, and release is only observable as "no more keydowns".
-   * Every keydown marks "pressed now"; a button that has not been refreshed
-   * for a while is auto-released. Directions are mutually exclusive.
+   *
+   * Strategy:
+   * - Directions (D-pad) hold while repeats keep arriving; they auto-release
+   *   after a long gap, and are mutually exclusive (last one wins).
+   * - Action buttons (A/B/start/select) *release quickly* (180ms) so fast
+   *   tapping produces a fresh press-edge for the game — this is what makes
+   *   rapid re-taps (double-jump, quick shots) register.
+   * - A later keydown for an already-held action button re-fires the press
+   *   (release+press) so the NES sees a new press edge even without a keyup.
    */
-  const HOLD_RELEASE_MS = 700;
+  const DIRECTION_HOLD_MS = 700;
+  const ACTION_RELEASE_MS = 180;
+  const ACTION_REPRESS_MS = 120;
   const lastKeydownAt = new Map<NesButton, number>();
   const heldButtons = new Set<NesButton>();
+
+  const isDirection = (key: NesButton): boolean =>
+    key === "left" || key === "right" || key === "up" || key === "down";
 
   function releaseNesButton(key: NesButton): void {
     game.setControl(key, false);
@@ -276,19 +288,31 @@ export async function runNes(): Promise<void> {
     else if (key === "right") releaseNesButton("left");
     if (key === "up") releaseNesButton("down");
     else if (key === "down") releaseNesButton("up");
-    // A/B/start/select are independent; only the idle-timeout releases them.
-    if (!heldButtons.has(key)) {
-      heldButtons.add(key);
-      game.setControl(key, true);
+
+    const now = performance.now();
+    if (heldButtons.has(key)) {
+      // Already held: a "fresh" keydown (clear of the typematic-repeat blur)
+      // should register as a brand-new press for the NES.
+      const last = lastKeydownAt.get(key);
+      if (!isDirection(key) && last != null && now - last > ACTION_REPRESS_MS) {
+        game.setControl(key, false);
+        game.setControl(key, true);
+      }
+      lastKeydownAt.set(key, now);
+      return;
     }
-    lastKeydownAt.set(key, performance.now());
+    heldButtons.add(key);
+    game.setControl(key, true);
+    lastKeydownAt.set(key, now);
   }
 
   holdTimer = setInterval(() => {
     const now = performance.now();
     for (const key of [...heldButtons]) {
       const last = lastKeydownAt.get(key);
-      if (last != null && now - last > HOLD_RELEASE_MS) releaseNesButton(key);
+      if (last == null) continue;
+      const limit = isDirection(key) ? DIRECTION_HOLD_MS : ACTION_RELEASE_MS;
+      if (now - last > limit) releaseNesButton(key);
     }
   }, 50);
 

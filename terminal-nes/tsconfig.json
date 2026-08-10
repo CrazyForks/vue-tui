@@ -6,15 +6,30 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
     "strict": true,
-    "allowJs": true,
-    "checkJs": false,
-    "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "noEmit": true,
     "isolatedModules": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@simon_he/vue-tui": ["../src/index.ts"],
+      "@simon_he/vue-tui/core": ["../src/core.ts"],
+      "@simon_he/vue-tui/runtime": ["../src/runtime.ts"],
+      "@simon_he/vue-tui/renderer/dom": ["../src/renderer-dom.ts"],
+      "@simon_he/vue-tui/observability": ["../src/observability.ts"],
+      "@simon_he/vue-tui/vue": ["../src/vue.ts"],
+      "@simon_he/vue-tui/cli": ["../src/cli.ts"],
+      "@simon_he/vue-tui/markdown": ["../src/markdown.ts"],
+      "@simon_he/vue-tui/experimental": ["../src/experimental.ts"],
+      "@simon_he/vue-tui/experimental/video/node": ["../src/experimental/video/node.ts"],
+      "@simon_he/vue-tui/experimental/3d/bun": ["../src/experimental/3d/bun.ts"],
+      "@simon_he/vue-tui/agent": ["../src/agent.ts"],
+      "@simon_he/vue-tui/agent/mermaid": ["../src/agent/mermaid.ts"],
+      "@simon_he/vue-tui/mermaid": ["../src/mermaid.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
