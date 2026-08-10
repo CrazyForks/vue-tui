@@ -1,124 +1,186 @@
-/**
- * Headless controller-state verification for the no-keyup input model.
- *
- * Simulates the terminal input stream (keydown only, with repeat) and checks:
- * 1. Direction flipping works (the exact bug Simon hit: stuck moving left).
- * 2. Fast re-taps on action buttons (A) produce a fresh press edge for the
- *    NES — without keyup, the old model held the button for 700ms and rapid
- *    double-taps never registered as new presses.
- * 3. Held directions do NOT re-fire (typematic repeat must not toggle).
- */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import Nes from "./vendor/jsnes/src/nes.js";
-import Controller, { type ButtonKey } from "./vendor/jsnes/src/controller.js";
+import { createTerminalApp } from "@simon_he/vue-tui/cli";
+import { nextTick } from "vue";
+import Controller from "./vendor/jsnes/src/controller.js";
+import { createNesVideoGame, getNesVideoLayout } from "./nes-video-game.js";
 
 const romPath = fileURLToPath(new URL("../assets/falling.nes", import.meta.url));
-const nes = new Nes({ emulateSound: false });
-nes.loadROM(new Uint8Array(readFileSync(romPath)));
+const rom = new Uint8Array(readFileSync(romPath));
 
-type Key = "left" | "right" | "up" | "down" | "a" | "b" | "start" | "select";
-const BTN: Record<Key, ButtonKey> = {
-  left: Controller.BUTTON_LEFT,
-  right: Controller.BUTTON_RIGHT,
-  up: Controller.BUTTON_UP,
-  down: Controller.BUTTON_DOWN,
-  a: Controller.BUTTON_A,
-  b: Controller.BUTTON_B,
-  start: Controller.BUTTON_START,
-  select: Controller.BUTTON_SELECT,
+type CpuMemory = { cpu: { mem: Uint8Array }; crashed?: boolean };
+type Game = ReturnType<typeof createNesVideoGame>;
+const ram = (game: Game): Uint8Array => (game.nes as unknown as CpuMemory).cpu.mem;
+const normalizedSnapshot = (game: Game): string => {
+  const app = createTerminalApp({
+    cols: 100,
+    rows: 30,
+    component: game.component,
+    defaultStyle: { fg: "white", bg: "black" },
+  });
+  app.mount();
+  app.scheduler.flushNow();
+  const snapshot = app.terminal.snapshot().lines.join("\n").replaceAll(" ", "");
+  app.dispose();
+  return snapshot;
 };
 
-// Mirror the runner's model exactly.
-const DIRECTION_HOLD_MS = 700;
-const ACTION_RELEASE_MS = 180;
-const ACTION_REPRESS_MS = 120;
-const lastDown = new Map<Key, number>();
-const held = new Set<Key>();
-
-const isDirection = (key: Key): boolean =>
-  key === "left" || key === "right" || key === "up" || key === "down";
-
-function release(key: Key, now: number) {
-  if (!held.has(key)) return;
-  nes.buttonUp(1, BTN[key]);
-  held.delete(key);
-  lastDown.delete(key);
+function warmTitle(game: Game): void {
+  for (let frame = 0; frame < 60; frame++) game.stepFrame();
 }
 
-function press(key: Key, now: number) {
-  if (key === "left") release("right", now);
-  else if (key === "right") release("left", now);
-  if (key === "up") release("down", now);
-  else if (key === "down") release("up", now);
+// Real ROM-frame check: two keydowns received together must be delivered as
+// press -> neutral -> press. Checking only the controller's final state (the
+// old test) cannot prove that Falling's button latch observed both edges.
+const repeatedDownGame = createNesVideoGame({ rom, profile: "falling" });
+warmTitle(repeatedDownGame);
+repeatedDownGame.queueControlPulse("down");
+repeatedDownGame.queueControlPulse("down");
+repeatedDownGame.stepFrame();
+const firstDownMoved = ram(repeatedDownGame)[0x0b] === 1;
+const firstDownVisible = repeatedDownGame.nes.controllers[1].state[Controller.BUTTON_DOWN] === 0x41;
+repeatedDownGame.stepFrame();
+const repeatedDownNeutral =
+  repeatedDownGame.nes.controllers[1].state[Controller.BUTTON_DOWN] === 0x40;
+repeatedDownGame.stepFrame();
+const secondDownMoved = ram(repeatedDownGame)[0x0b] === 2;
+const secondDownVisible =
+  repeatedDownGame.nes.controllers[1].state[Controller.BUTTON_DOWN] === 0x41;
 
-  if (held.has(key)) {
-    const last = lastDown.get(key);
-    if (!isDirection(key) && last != null && now - last > ACTION_REPRESS_MS) {
-      // fresh press: re-fire the edge (release then press)
-      nes.buttonUp(1, BTN[key]);
-      nes.buttonDown(1, BTN[key]);
-    }
-    lastDown.set(key, now);
-    return;
-  }
-  held.add(key);
-  nes.buttonDown(1, BTN[key]);
-  lastDown.set(key, now);
+// The reported Down -> Up sequence also needs the neutral frame, otherwise the
+// ROM's shared Up/Down latch treats the second direction as still held.
+const downUpGame = createNesVideoGame({ rom, profile: "falling" });
+warmTitle(downUpGame);
+downUpGame.queueControlPulse("down");
+downUpGame.queueControlPulse("up");
+downUpGame.stepFrame();
+const downBeforeUpMoved = ram(downUpGame)[0x0b] === 1;
+downUpGame.stepFrame();
+const downUpNeutral =
+  downUpGame.nes.controllers[1].state[Controller.BUTTON_DOWN] === 0x40 &&
+  downUpGame.nes.controllers[1].state[Controller.BUTTON_UP] === 0x40;
+downUpGame.stepFrame();
+const immediateUpMoved = ram(downUpGame)[0x0b] === 0;
+const immediateUpVisible = downUpGame.nes.controllers[1].state[Controller.BUTTON_UP] === 0x41;
+
+// Verify the bundled game's phase-specific hints instead of checking a Game
+// Over screen that does not render movement controls.
+const titleUiGame = createNesVideoGame({ rom, profile: "falling", cols: 100, rows: 30 });
+warmTitle(titleUiGame);
+const titleSnapshot = normalizedSnapshot(titleUiGame);
+const titleControlsAccurate =
+  titleSnapshot.includes("↑↓选择模式") &&
+  titleSnapshot.includes("Enter=Start") &&
+  !titleSnapshot.includes("WASD") &&
+  !titleSnapshot.includes("射击") &&
+  !titleSnapshot.includes("跳跃");
+
+const playingUiGame = createNesVideoGame({ rom, profile: "falling", cols: 100, rows: 30 });
+warmTitle(playingUiGame);
+playingUiGame.setControl("start", true);
+playingUiGame.stepFrame();
+playingUiGame.setControl("start", false);
+const playingSnapshot = normalizedSnapshot(playingUiGame);
+const playingControlsAccurate =
+  playingUiGame.getPhase() === "playing" &&
+  playingSnapshot.includes("←→/AD左右移动") &&
+  !playingSnapshot.includes("WASD") &&
+  !playingSnapshot.includes("射击") &&
+  !playingSnapshot.includes("跳跃");
+
+// Falling exposes its state in zero-page RAM. Force a deterministic Game Over
+// host transition, then verify analysis, resize geometry, the click hitbox, and
+// real ROM execution after restart.
+const gameOverGame = createNesVideoGame({ rom, profile: "falling", cols: 100, rows: 30 });
+warmTitle(gameOverGame);
+const gameOverRam = ram(gameOverGame);
+gameOverRam[0x00] = 3;
+gameOverRam[0x0b] = 2;
+gameOverRam[0x1b] = 0x01;
+gameOverRam[0x1c] = 0x23;
+gameOverGame.stepFrame();
+const gameOverDetected = gameOverGame.isGameOver();
+const gameOverAnalysis = gameOverGame.getAnalysis();
+const analysisReadsRom = gameOverAnalysis?.mode === "Night" && gameOverAnalysis.score === 0x0123;
+
+const app = createTerminalApp({
+  cols: 100,
+  rows: 30,
+  component: gameOverGame.component,
+  defaultStyle: { fg: "white", bg: "black" },
+});
+app.mount();
+app.scheduler.flushNow();
+const snapshot = app.terminal.snapshot().lines.join("\n");
+const analysisVisible = snapshot.includes("Night") && snapshot.includes("291");
+const restartVisible = snapshot.includes("RESTART");
+
+app.terminal.resize(80, 24);
+await nextTick();
+app.scheduler.flushNow();
+const resizedLines = app.terminal.snapshot().lines;
+const actualBoxFillsAfterResize =
+  resizedLines.length === 24 &&
+  resizedLines[0]?.startsWith("┌") === true &&
+  resizedLines[0]?.endsWith("┐") === true &&
+  resizedLines[23]?.startsWith("└") === true &&
+  resizedLines[23]?.endsWith("┘") === true;
+const restartRow = resizedLines.findIndex((line) => line.includes("RESTART"));
+const restartCol = restartRow >= 0 ? resizedLines[restartRow]!.indexOf("[") : -1;
+gameOverGame.setRestartHandler(() => gameOverGame.reset());
+if (restartRow >= 0 && restartCol >= 0) {
+  app.events.dispatch({ type: "click", cellX: restartCol, cellY: restartRow });
 }
+const restartButtonDispatched = gameOverGame.getPhase() === "title";
 
-function idle(now: number) {
-  for (const key of [...held]) {
-    const last = lastDown.get(key);
-    if (last == null) continue;
-    const limit = isDirection(key) ? DIRECTION_HOLD_MS : ACTION_RELEASE_MS;
-    if (now - last > limit) release(key, now);
-  }
+let restartRunsFrames = true;
+try {
+  warmTitle(gameOverGame);
+} catch {
+  restartRunsFrames = false;
 }
+const restartReturnsToTitle =
+  restartRunsFrames &&
+  gameOverGame.getPhase() === "title" &&
+  ram(gameOverGame)[0x00] === 0 &&
+  (gameOverGame.nes as unknown as CpuMemory).crashed !== true;
+gameOverGame.queueControlPulse("down");
+gameOverGame.stepFrame();
+const restartedModeIsInteractive = ram(gameOverGame)[0x0b] === 1;
+app.dispose();
 
-let t = 0;
-
-// 1. Direction flip: left (held with repeats) → idle → right.
-press("left", (t += 30));
-press("left", (t += 30));
-press("left", (t += 30));
-t += DIRECTION_HOLD_MS + 100;
-idle(t);
-const leftReleasedAfterIdle = nes.controllers[1].state[BTN.left] === 0x40;
-
-press("right", t);
-press("right", (t += 30));
-const rightHeld = nes.controllers[1].state[BTN.right] === 0x41;
-const leftStillUp = nes.controllers[1].state[BTN.left] === 0x40;
-
-// 2. Fast re-tap on A: two presses well under the old 700ms hold must both
-//    register as press edges. We can only observe edges via state, so verify
-//    the re-press path toggles state down→up→down in order.
-t += ACTION_RELEASE_MS + 50; // let the first A press auto-release
-idle(t);
-press("a", t);
-const aFirstDown = nes.controllers[1].state[BTN.a] === 0x41;
-t += ACTION_RELEASE_MS + 50;
-idle(t);
-const aFirstReleased = nes.controllers[1].state[BTN.a] === 0x40;
-press("a", t); // fresh press again
-const aSecondDown = nes.controllers[1].state[BTN.a] === 0x41;
-
-// 3. Typematic repeat on a held action button must NOT delete the press.
-t += 30;
-press("a", t); // repeat arrives while still held (gap < ACTION_REPRESS_MS)
-const aStillDown = nes.controllers[1].state[BTN.a] === 0x41;
+const fullLayout = getNesVideoLayout(100, 30);
+const boxFillsTerminal = fullLayout.boxW === 100 && fullLayout.boxH === 30;
+const videoFillsContent =
+  fullLayout.videoX === 0 &&
+  fullLayout.videoY === 0 &&
+  fullLayout.videoW === fullLayout.contentW &&
+  fullLayout.videoH === fullLayout.helpY;
 
 const checks = {
-  leftReleasedAfterIdle,
-  rightHeld,
-  leftStillUp,
-  aFirstDown,
-  aFirstReleased,
-  aSecondDown,
-  aStillDown,
+  firstDownMoved,
+  firstDownVisible,
+  repeatedDownNeutral,
+  secondDownMoved,
+  secondDownVisible,
+  downBeforeUpMoved,
+  downUpNeutral,
+  immediateUpMoved,
+  immediateUpVisible,
+  titleControlsAccurate,
+  playingControlsAccurate,
+  gameOverDetected,
+  analysisReadsRom,
+  analysisVisible,
+  restartVisible,
+  actualBoxFillsAfterResize,
+  restartButtonDispatched,
+  restartReturnsToTitle,
+  restartedModeIsInteractive,
+  boxFillsTerminal,
+  videoFillsContent,
 };
 const ok = Object.values(checks).every(Boolean);
 console.log(JSON.stringify(checks, null, 2));
-console.log(ok ? "nes input flip: OK" : "nes input flip: FAILED");
+console.log(ok ? "nes input/ui integration: OK" : "nes input/ui integration: FAILED");
 process.exit(ok ? 0 : 1);

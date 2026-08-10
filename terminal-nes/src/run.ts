@@ -10,8 +10,6 @@
  *   2. VUE_TUI_NES_RANDOM=1 → random .nes from the roms dir
  *   3. user-placed roms/contra.nes (next to the CLI) if present
  *   4. bundled assets/falling.nes
- *
- * Share: press S → screenshot PNG + system clipboard + open X composer.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -124,7 +122,10 @@ export async function runNes(): Promise<void> {
   const cols = smoke ? 100 : Math.max(48, Number(process.stdout.columns) || 100);
   const rows = smoke ? 30 : Math.max(16, Number(process.stdout.rows) || 30);
 
-  const game = createNesVideoGame({ rom, cols, rows });
+  // Detect Falling by ROM bytes, not path, so VUE_TUI_NES_ROM, symlinks, and
+  // copied files keep the mode-selector input and Game Over integration.
+  const profile = romBytes.equals(readFileSync(defaultRom)) ? "falling" : "generic";
+  const game = createNesVideoGame({ rom, cols, rows, profile });
 
   if (!smoke) {
     const info = game.getRomInfo();
@@ -141,7 +142,7 @@ export async function runNes(): Promise<void> {
     const top = getLeaderboard().slice(0, 5);
     if (top.length > 0) {
       process.stderr.write(
-        `[nes] 🏆 leaderboard — press S to share & compete:\n` +
+        `[nes] 🏆 leaderboard — open P menu, then press 2 to share & compete:\n` +
           top
             .map(
               (e, i) =>
@@ -152,9 +153,7 @@ export async function runNes(): Promise<void> {
           "\n",
       );
     } else {
-      process.stderr.write(
-        "[nes] press S anytime to screenshot + share to X and join the local leaderboard.\n",
-      );
+      process.stderr.write("[nes] open the P menu, then press 2 to screenshot + share to X.\n");
     }
     process.stderr.write(`[nes] repo: ${VUE_TUI_URL}\n`);
   }
@@ -254,21 +253,13 @@ export async function runNes(): Promise<void> {
   };
 
   /**
-   * Terminal stdin has no keyup events: a held key is signalled by repeated
-   * keydown events, and release is only observable as "no more keydowns".
-   *
-   * Strategy:
-   * - Directions (D-pad) hold while repeats keep arriving; they auto-release
-   *   after a long gap, and are mutually exclusive (last one wins).
-   * - Action buttons (A/B/start/select) *release quickly* (180ms) so fast
-   *   tapping produces a fresh press-edge for the game — this is what makes
-   *   rapid re-taps (double-jump, quick shots) register.
-   * - A later keydown for an already-held action button re-fires the press
-   *   (release+press) so the NES sees a new press edge even without a keyup.
+   * Legacy terminal input has keydown but no keyup. Falling's mode selector
+   * needs distinct press edges, so Up/Down bypass this hold model and enter the
+   * component's frame-level pulse queue. The queue guarantees a neutral NES
+   * frame between events; a synchronous buttonUp/buttonDown pair cannot do so.
    */
   const DIRECTION_HOLD_MS = 700;
   const ACTION_RELEASE_MS = 180;
-  const ACTION_REPRESS_MS = 120;
   const lastKeydownAt = new Map<NesButton, number>();
   const heldButtons = new Set<NesButton>();
 
@@ -282,33 +273,27 @@ export async function runNes(): Promise<void> {
   }
 
   function pressNesButton(key: NesButton): void {
-    // Direction buttons are mutually exclusive like a real D-pad: the last
-    // pressed direction wins and the opposite one releases immediately.
+    if (game.usesPulseInput(key)) {
+      game.queueControlPulse(key);
+      return;
+    }
+
     if (key === "left") releaseNesButton("right");
     else if (key === "right") releaseNesButton("left");
     if (key === "up") releaseNesButton("down");
     else if (key === "down") releaseNesButton("up");
 
     const now = performance.now();
-    if (heldButtons.has(key)) {
-      // Already held: a "fresh" keydown (clear of the typematic-repeat blur)
-      // should register as a brand-new press for the NES.
-      const last = lastKeydownAt.get(key);
-      if (!isDirection(key) && last != null && now - last > ACTION_REPRESS_MS) {
-        game.setControl(key, false);
-        game.setControl(key, true);
-      }
-      lastKeydownAt.set(key, now);
-      return;
+    if (!heldButtons.has(key)) {
+      heldButtons.add(key);
+      game.setControl(key, true);
     }
-    heldButtons.add(key);
-    game.setControl(key, true);
     lastKeydownAt.set(key, now);
   }
 
   holdTimer = setInterval(() => {
     const now = performance.now();
-    for (const key of [...heldButtons]) {
+    for (const key of heldButtons) {
       const last = lastKeydownAt.get(key);
       if (last == null) continue;
       const limit = isDirection(key) ? DIRECTION_HOLD_MS : ACTION_RELEASE_MS;
@@ -316,14 +301,14 @@ export async function runNes(): Promise<void> {
     }
   }, 50);
 
-  /** S key: capture a frame, save a PNG, copy image + text, open X composer. */
+  /** Share (from the pause menu): capture a frame, save a PNG, copy image +
+   *  text, open X composer. Stays paused afterwards so the menu persists. */
   let playStartedAt = performance.now();
   let shareCooldownUntil = 0;
   const handleShare = (): void => {
     const now = performance.now();
     if (now < shareCooldownUntil) return;
     shareCooldownUntil = now + 2000;
-    const wasPaused = game.isPaused();
     game.setPaused(true); // freeze the frame we are screenshotting
 
     const rgba = game.frameSnapshot();
@@ -341,8 +326,6 @@ export async function runNes(): Promise<void> {
     const opened = openBrowserToX(result.caption);
     const textCopied = result.copied;
 
-    game.setPaused(wasPaused);
-
     process.stderr.write(
       `\n[nes] 📸 share:\n` +
         `[nes]   browser${opened ? " opened" : " NOT opened — copy the caption manually"} → X composer\n` +
@@ -355,6 +338,15 @@ export async function runNes(): Promise<void> {
     );
   };
 
+  const restart = (): void => {
+    for (const key of heldButtons) releaseNesButton(key);
+    lastKeydownAt.clear();
+    game.reset();
+    playStartedAt = performance.now();
+    app.scheduler.flushNow();
+  };
+  game.setRestartHandler(restart);
+
   driver = createStdinDriver({
     keyboardProtocol: "off",
     dispatch: (event) => {
@@ -366,13 +358,38 @@ export async function runNes(): Promise<void> {
           exit();
           return true;
         }
+        if (game.isGameOver()) {
+          if (k === "enter" || k === "r") restart();
+          app.scheduler.flush();
+          return true;
+        }
         if (k === "p" && !event.ctrlKey && !event.metaKey) {
           game.pause();
           app.scheduler.flush();
           return true;
         }
-        if (k === "s" && !event.ctrlKey && !event.metaKey && !event.repeat) {
-          handleShare();
+        // Pause menu: 1/Enter resume · 2 share to X · 3 restart · 4 quit.
+        if (game.isPaused()) {
+          if (k === "1" || k === "enter") {
+            game.setPaused(false);
+            app.scheduler.flush();
+            return true;
+          }
+          if (k === "2") {
+            handleShare();
+            app.scheduler.flush();
+            return true;
+          }
+          if (k === "3") {
+            restart();
+            app.scheduler.flush();
+            return true;
+          }
+          if (k === "4") {
+            exit();
+            return true;
+          }
+          // While the menu is open, do not feed the NES controller.
           app.scheduler.flush();
           return true;
         }
@@ -385,7 +402,7 @@ export async function runNes(): Promise<void> {
       app.scheduler.flush();
       return prevented;
     },
-    enableMouse: false,
+    enableMouse: true,
     onExit: () => exit(0),
   });
 

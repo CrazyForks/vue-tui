@@ -3,15 +3,16 @@
  * terminal-nes — 🎮 Real NES emulator in your terminal
  *
  * Usage:  terminal-nes          (or npx terminal-nes)
- * Keys:
- *   ←↑↓→ / WASD → D-pad   Z/J → B   X/K → A
- *   Enter → Start   Shift → Select   S → share to X   P → pause   Q/Ctrl-C → quit
+ * Falling: ←/→ or A/D → move, ↑/↓ → select mode, Enter → start
+ * Menu: P → open, then 1 resume / 2 share / 3 restart / 4 quit
  *
  * Requires a graphics-protocol terminal: Kitty, iTerm2, WezTerm, Ghostty, or Sixel.
  */
 import { runNes } from "./run.js";
 
 runNes().catch((error) => {
-  process.stderr.write(`[terminal-nes] ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `[terminal-nes] ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.exit(1);
 });

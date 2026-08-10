@@ -25,16 +25,19 @@ npx terminal-nes
 
 ## Controls
 
-| Key                | NES button      |
-| ------------------ | --------------- |
-| `←↑↓→` / `WASD`    | D-pad           |
-| `Z` / `J`          | B (shoot)       |
-| `X` / `K`          | A (jump)        |
-| `Enter`            | Start           |
-| `Shift`            | Select          |
-| `S`                | Screenshot + share to X |
-| `P`                | Pause           |
-| `Q` / `Ctrl+C`     | Quit            |
+Bundled Falling game:
+
+| Key                    | Action                      |
+| ---------------------- | --------------------------- |
+| `←` / `→` or `A` / `D` | Move left/right             |
+| `↑` / `↓`              | Select mode before starting |
+| `Enter`                | Start                       |
+| `P`                    | Open menu                   |
+| `Q` / `Ctrl+C`         | Quit                        |
+
+The pause menu provides resume, share, restart, and quit actions. Generic ROMs
+still receive the complete NES D-pad plus `Z/J` = B, `X/K` = A, `Enter` = Start,
+and `Shift` = Select.
 
 ## Play your own (legally owned) ROM
 
@@ -58,7 +61,7 @@ ROMs you legally own (own-cartridge dumps / officially licensed files).
 
 ## Share to X + leaderboard
 
-Press `S` mid-game:
+Open the menu with `P`, then press `2`:
 
 1. Screenshot saved as PNG (`.nes-shares/`)
 2. Image copied to the system clipboard (macOS/Linux)
