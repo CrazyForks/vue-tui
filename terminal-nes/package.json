@@ -1,0 +1,68 @@
+{
+  "name": "terminal-nes",
+  "version": "0.1.0",
+  "description": "🎮 Real NES emulator in your terminal — jsnes core, pixel-perfect 256×224 frames via kitty/iTerm2 graphics, keyboard → NES controller, share-to-X with screenshot.",
+  "keywords": [
+    "nes",
+    "emulator",
+    "retro",
+    "terminal-game",
+    "tui",
+    "kitty-graphics",
+    "iterm2",
+    "vue-tui",
+    "cli"
+  ],
+  "homepage": "https://github.com/Simon-He95/vue-tui/tree/main/terminal-nes",
+  "license": "MIT",
+  "author": "Simon He",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Simon-He95/vue-tui.git",
+    "directory": "terminal-nes"
+  },
+  "bin": {
+    "terminal-nes": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/cli.js",
+    "smoke": "VT_SMOKE=1 tsx src/cli.ts",
+    "check:rom": "tsx src/check-rom.ts",
+    "check:input": "tsx src/input-flip-check.ts",
+    "check:share": "tsx src/share-check.ts",
+    "check:share-browser": "tsx src/share-browser-check.ts",
+    "pack:local": "pnpm pack --pack-destination .release"
+  },
+  "dependencies": {
+    "@simon_he/vue-tui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "tsdown": "^0.9.9",
+    "tsx": "^4.23.11",
+    "typescript": "^5.9.3",
+    "vue": "^3.5.41"
+  },
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  }
+}
